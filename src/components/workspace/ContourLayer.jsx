@@ -1,11 +1,71 @@
 /**
- * @fileoverview Couche SVG — contours et zones polygonales cliquables
+ * @fileoverview Couche SVG — contours et zones polygonales
+ * Sélection et déplacement des nœuds en mode select
  */
 import PropTypes from "prop-types";
+import { useRef } from "react";
 import { useApp } from "../../hooks/useApp";
+import { useDrag } from "../../hooks/useDrag";
 
 const toSvgPoints = (pts, w, h) =>
     pts.map((p) => `${(p.x / 100) * w},${(p.y / 100) * h}`).join(" ");
+
+/**
+ * Nœud draggable d'un tracé fermé
+ */
+function DraggableNode({ point, index, pathId, imageWidth, imageHeight }) {
+    const { state, actions } = useApp();
+    const dragOrigin = useRef({ x: point.x, y: point.y });
+
+    const { onDragStart } = useDrag({
+        onMove: (dx, dy) => {
+            const { zoom } = state.ui;
+            const { naturalWidth, naturalHeight } = state.image;
+            actions.updateContourPoint(pathId, index, {
+                x: Math.max(
+                    0,
+                    Math.min(
+                        100,
+                        dragOrigin.current.x + (dx / zoom / naturalWidth) * 100
+                    )
+                ),
+                y: Math.max(
+                    0,
+                    Math.min(
+                        100,
+                        dragOrigin.current.y + (dy / zoom / naturalHeight) * 100
+                    )
+                ),
+            });
+        },
+    });
+
+    const handleMouseDown = (e) => {
+        dragOrigin.current = { x: point.x, y: point.y };
+        onDragStart(e);
+    };
+
+    return (
+        <circle
+            cx={(point.x / 100) * imageWidth}
+            cy={(point.y / 100) * imageHeight}
+            r={6}
+            fill="white"
+            stroke="#3B82F6"
+            strokeWidth={2}
+            style={{ cursor: "grab", pointerEvents: "auto" }}
+            onMouseDown={handleMouseDown}
+        />
+    );
+}
+
+DraggableNode.propTypes = {
+    point: PropTypes.object.isRequired,
+    index: PropTypes.number.isRequired,
+    pathId: PropTypes.string.isRequired,
+    imageWidth: PropTypes.number.isRequired,
+    imageHeight: PropTypes.number.isRequired,
+};
 
 function ContourPath({
     path,
@@ -37,7 +97,6 @@ function ContourPath({
             : null;
     const allPts = ghostPt ? `${basePts} ${ghostPt}` : basePts;
 
-    // Handler sur la forme elle-même
     const handleShapeClick = (e) => {
         if (!selectable || !path.closed) return;
         e.stopPropagation();
@@ -46,14 +105,14 @@ function ContourPath({
 
     const clickableStyle =
         selectable && path.closed
-            ? { cursor: "pointer" }
-            : { cursor: "default" };
+            ? { cursor: "pointer", pointerEvents: "auto" }
+            : { cursor: "default", pointerEvents: "none" };
 
     return (
         <g>
             {path.closed ? (
                 <>
-                    {/* Zone de clic élargie invisible */}
+                    {/* Zone de clic élargie */}
                     <polygon
                         points={basePts}
                         fill={isZone ? path.fillColor : "none"}
@@ -83,17 +142,27 @@ function ContourPath({
                             style={{ pointerEvents: "none" }}
                         />
                     )}
+                    {/* Nœuds déplaçables (visibles si sélectionné) */}
+                    {isSelected &&
+                        pts.map((p, i) => (
+                            <DraggableNode
+                                key={i}
+                                point={p}
+                                index={i}
+                                pathId={path.id}
+                                imageWidth={imageWidth}
+                                imageHeight={imageHeight}
+                            />
+                        ))}
                 </>
             ) : (
                 <>
-                    {/* Tracé en cours */}
                     <polyline
                         points={allPts}
                         fill="none"
                         style={{ pointerEvents: "none" }}
                         {...sharedStroke}
                     />
-                    {/* Remplissage fantôme zone */}
                     {isZone && pts.length >= 2 && (
                         <polygon
                             points={ghostPt ? `${basePts} ${ghostPt}` : basePts}
@@ -103,7 +172,7 @@ function ContourPath({
                             style={{ pointerEvents: "none" }}
                         />
                     )}
-                    {/* Points de contrôle */}
+                    {/* Points de contrôle pendant le tracé */}
                     {pts.map((p, i) => (
                         <circle
                             key={i}
@@ -195,7 +264,7 @@ export function ContourLayer({ imageWidth, imageHeight, cursorPoint }) {
             height={imageHeight}
             viewBox={`0 0 ${imageWidth} ${imageHeight}`}
             overflow="visible"
-            style={{ pointerEvents: "none" }} // Le SVG lui-même est transparent
+            style={{ pointerEvents: "none" }}
         >
             {state.contourPaths.map((path) => (
                 <ContourPath
