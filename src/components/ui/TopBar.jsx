@@ -6,31 +6,27 @@ import PropTypes from "prop-types";
 import { useApp } from "../../hooks/useApp";
 import { useProjectManager } from "../../hooks/useProjectManager";
 import { ProjectModal } from "./ProjectModal";
+import { ConfirmModal } from "./ConfirmModal";
 import { exportToPng } from "../../utils/exportCanvas";
 import { exportProject } from "../../utils/projectIO";
 import { ImportButton } from "./ImportButton";
 
 /**
- * Indicateur d'état de sauvegarde
  * @param {{ isDirty:boolean, isSaving:boolean, saveResult:object|null }} props
  */
 function SaveStatus({ isDirty, isSaving, saveResult }) {
-    if (isSaving) {
+    if (isSaving)
         return (
             <span className="text-xs text-slate-400 animate-pulse">
                 Sauvegarde…
             </span>
         );
-    }
-    if (saveResult?.success) {
+    if (saveResult?.success)
         return <span className="text-xs text-green-500">✓ Sauvegardé</span>;
-    }
-    if (saveResult?.error) {
+    if (saveResult?.error)
         return <span className="text-xs text-red-500">⚠ Erreur</span>;
-    }
-    if (isDirty) {
+    if (isDirty)
         return <span className="text-xs text-amber-500">● Non sauvegardé</span>;
-    }
     return <span className="text-xs text-slate-400">✓ À jour</span>;
 }
 
@@ -42,12 +38,10 @@ SaveStatus.propTypes = {
 
 SaveStatus.defaultProps = { saveResult: null };
 
-/**
- * Barre supérieure de l'application
- */
 export function TopBar() {
     const { state, actions } = useApp();
     const [showModal, setShowModal] = useState(false);
+    const [showConfirmNew, setShowConfirmNew] = useState(false);
     const {
         projects,
         isSaving,
@@ -60,13 +54,22 @@ export function TopBar() {
 
     const hasImage = Boolean(state.image.src);
 
+    const handleNewClick = () => {
+        // Demande confirmation uniquement si des modifications non sauvegardées
+        if (state.ui.isDirty) {
+            setShowConfirmNew(true);
+        } else {
+            handleNew();
+        }
+    };
+
     return (
         <>
             <header
                 className="flex items-center gap-3 px-4 h-12 bg-white border-b
                          border-slate-200 shrink-0 z-10"
             >
-                {/* Nom du projet — éditable inline */}
+                {/* Nom du projet */}
                 <input
                     type="text"
                     value={state.project.name}
@@ -94,17 +97,15 @@ export function TopBar() {
                     placeholder="Nom de l'école…"
                 />
 
-                {/* Spacer */}
                 <div className="flex-1" />
 
-                {/* Statut */}
                 <SaveStatus
                     isDirty={state.ui.isDirty}
                     isSaving={isSaving}
                     saveResult={saveResult}
                 />
 
-                {/* Bouton — projets */}
+                {/* Bouton Projets */}
                 <button
                     type="button"
                     onClick={() => setShowModal(true)}
@@ -115,6 +116,19 @@ export function TopBar() {
                     📁 Projets
                 </button>
 
+                {/* Nouveau projet */}
+                {hasImage && (
+                    <button
+                        type="button"
+                        onClick={handleNewClick}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
+                       text-slate-600 hover:bg-slate-100 transition-colors
+                       focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                    >
+                        ✚ Nouveau
+                    </button>
+                )}
+
                 {hasImage && (
                     <>
                         {/* Export .ppmsu */}
@@ -122,8 +136,8 @@ export function TopBar() {
                             type="button"
                             onClick={() => exportProject(state)}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
-                 text-slate-600 hover:bg-slate-100 transition-colors
-                 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                         text-slate-600 hover:bg-slate-100 transition-colors
+                         focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
                         >
                             📤 Exporter
                         </button>
@@ -133,7 +147,7 @@ export function TopBar() {
                     </>
                 )}
 
-                {/* Bouton — sauvegarder */}
+                {/* Sauvegarder */}
                 {hasImage && (
                     <button
                         type="button"
@@ -148,6 +162,8 @@ export function TopBar() {
                         {isSaving ? "…" : "💾 Sauvegarder"}
                     </button>
                 )}
+
+                {/* Export PNG */}
                 {hasImage && (
                     <button
                         type="button"
@@ -158,11 +174,11 @@ export function TopBar() {
                             )
                         }
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
-               font-medium bg-emerald-500 text-white hover:bg-emerald-600
-               transition-colors focus:outline-none
-               focus-visible:ring-2 focus-visible:ring-emerald-400"
+                       font-medium bg-emerald-500 text-white hover:bg-emerald-600
+                       transition-colors focus:outline-none
+                       focus-visible:ring-2 focus-visible:ring-emerald-400"
                     >
-                        📥 Exporter
+                        📥 PNG
                     </button>
                 )}
             </header>
@@ -174,7 +190,23 @@ export function TopBar() {
                     projects={projects}
                     onLoad={handleLoad}
                     onDelete={handleDelete}
-                    onNew={handleNew}
+                    onNew={handleNewClick}
+                />
+            )}
+
+            {/* Confirmation nouveau projet */}
+            {showConfirmNew && (
+                <ConfirmModal
+                    title="Nouveau projet"
+                    message="Des modifications non sauvegardées seront perdues. Continuer ?"
+                    confirmLabel="Nouveau projet"
+                    cancelLabel="Annuler"
+                    variant="warning"
+                    onConfirm={() => {
+                        setShowConfirmNew(false);
+                        handleNew();
+                    }}
+                    onCancel={() => setShowConfirmNew(false)}
                 />
             )}
         </>

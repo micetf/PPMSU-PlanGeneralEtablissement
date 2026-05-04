@@ -9,9 +9,14 @@ import { TopBar } from "./components/ui/TopBar";
 import { WorkspaceCanvas } from "./components/workspace/WorkspaceCanvas";
 import { useApp } from "./hooks/useApp";
 import { useContourDraw } from "./hooks/useContourDraw";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 
 function WorkspaceLayout() {
     const { state, actions } = useApp();
+
+    // Raccourcis clavier actifs uniquement dans le workspace
+    useKeyboardShortcuts();
+
     const {
         cursorPoint,
         handleCanvasClick: contourClick,
@@ -64,11 +69,6 @@ function WorkspaceLayout() {
     );
 }
 
-/**
- * Aiguilleur racine — HomeScreen OU WorkspaceLayout
- * Les deux ne sont jamais montés simultanément → useProjectManager
- * n'est instancié qu'une seule fois à la fois.
- */
 function AppRouter() {
     const { state } = useApp();
     return state.image.src ? <WorkspaceLayout /> : <HomeScreen />;
