@@ -1,14 +1,12 @@
 /**
- * @fileoverview Couche de rendu des éléments de légende (symboles + textes)
- * positionnés sur l'image. Coordonnées stockées en % → converties en px à l'affichage.
+ * @fileoverview Couche de rendu des éléments de légende avec déplacement par drag
  */
 import PropTypes from "prop-types";
+import { useRef } from "react";
 import { getSymbolByKey } from "../../constants/ppmsLegend";
 import { useApp } from "../../hooks/useApp";
+import { useDrag } from "../../hooks/useDrag";
 
-/**
- * Rendu SVG d'une rose des vents (orientation du plan)
- */
 function NorthArrow() {
     return (
         <svg viewBox="0 0 40 40" width="40" height="40" aria-label="Nord">
@@ -20,7 +18,6 @@ function NorthArrow() {
 }
 
 /**
- * Un élément de légende positionnable
  * @param {{ item: object, imageWidth: number, imageHeight: number }} props
  */
 function LegendItem({ item, imageWidth, imageHeight }) {
@@ -28,19 +25,41 @@ function LegendItem({ item, imageWidth, imageHeight }) {
     const symbol = getSymbolByKey(item.symbolKey);
     const isSelected = state.ui.selectedItemId === item.id;
 
-    const x = (item.x / 100) * imageWidth;
-    const y = (item.y / 100) * imageHeight;
+    const dragOrigin = useRef({ x: item.x, y: item.y });
 
-    const handleClick = (e) => {
-        e.stopPropagation();
-        actions.selectItem(isSelected ? null : item.id);
+    const { onDragStart } = useDrag({
+        onMove: (dx, dy) => {
+            const { zoom } = state.ui;
+            const { naturalWidth, naturalHeight } = state.image;
+            actions.updateLegendItem(item.id, {
+                x: Math.max(
+                    0,
+                    Math.min(
+                        100,
+                        dragOrigin.current.x + (dx / zoom / naturalWidth) * 100
+                    )
+                ),
+                y: Math.max(
+                    0,
+                    Math.min(
+                        100,
+                        dragOrigin.current.y + (dy / zoom / naturalHeight) * 100
+                    )
+                ),
+            });
+        },
+    });
+
+    const handleMouseDown = (e) => {
+        if (state.ui.selectedTool !== "select") return;
+        actions.selectItem(item.id);
+        dragOrigin.current = { x: item.x, y: item.y };
+        onDragStart(e);
     };
 
     const renderContent = () => {
-        if (item.type === "compose" && symbol?.shape === "north_arrow") {
+        if (item.type === "compose" && symbol?.shape === "north_arrow")
             return <NorthArrow />;
-        }
-
         if (item.type === "texte") {
             return (
                 <span
@@ -70,16 +89,20 @@ function LegendItem({ item, imageWidth, imageHeight }) {
         return null;
     };
 
+    const x = (item.x / 100) * imageWidth;
+    const y = (item.y / 100) * imageHeight;
+
     return (
         <div
             role="button"
             tabIndex={0}
             aria-label={symbol?.label ?? item.label}
             aria-pressed={isSelected}
-            onClick={handleClick}
-            onKeyDown={(e) => e.key === "Enter" && handleClick(e)}
-            className="absolute cursor-pointer"
+            onMouseDown={handleMouseDown}
+            onClick={(e) => e.stopPropagation()} // ← empêche le canvas de désélectionner
+            onKeyDown={(e) => e.key === "Enter" && actions.selectItem(item.id)}
             style={{
+                position: "absolute",
                 left: x,
                 top: y,
                 transform: `translate(-50%, -50%) rotate(${item.rotation}deg)`,
@@ -87,6 +110,7 @@ function LegendItem({ item, imageWidth, imageHeight }) {
                 zIndex: item.zIndex,
                 outline: isSelected ? "2px solid #3B82F6" : "none",
                 outlineOffset: "3px",
+                cursor: state.ui.selectedTool === "select" ? "grab" : "default",
             }}
         >
             {renderContent()}
@@ -100,13 +124,8 @@ LegendItem.propTypes = {
     imageHeight: PropTypes.number.isRequired,
 };
 
-/**
- * Couche complète des symboles positionnés
- * @param {{ imageWidth: number, imageHeight: number }} props
- */
 export function SymbolLayer({ imageWidth, imageHeight }) {
     const { state } = useApp();
-
     return (
         <>
             {state.legendItems.map((item) => (
