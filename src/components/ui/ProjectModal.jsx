@@ -112,8 +112,8 @@ export function ProjectModal({ onClose, projects, onLoad, onDelete, onNew }) {
         dialogRef.current?.focus();
     }, []);
 
-    const handleLoad = (id) => {
-        const result = onLoad(id);
+    const handleLoad = async (id) => {
+        const result = await onLoad(id);
         if (result?.success) onClose();
     };
 
