@@ -2,11 +2,53 @@
  * @fileoverview Couche de rendu des éléments de légende avec déplacement par drag
  */
 import PropTypes from "prop-types";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { getSymbolByKey } from "../../constants/ppmsLegend";
 import { useApp } from "../../hooks/useApp";
 import { useDrag } from "../../hooks/useDrag";
 import { symbolUrl } from "../../utils/assetPath";
+
+/**
+ * Image de symbole avec fallback si fichier manquant
+ * @param {{ src:string, alt:string, width:number, height:number }} props
+ */
+function SymbolImageFallback({ src, alt, width, height }) {
+    const [error, setError] = useState(false);
+
+    if (error) {
+        return (
+            <div
+                title={`Symbole manquant : ${alt}`}
+                style={{ width, height }}
+                className="flex items-center justify-center rounded border
+                   border-dashed border-red-300 bg-red-50 text-red-400
+                   text-[10px] text-center leading-tight p-1 select-none"
+            >
+                ⚠️
+            </div>
+        );
+    }
+
+    return (
+        <img
+            src={src}
+            alt={alt}
+            width={width}
+            height={height}
+            className="select-none"
+            draggable={false}
+            style={{ imageRendering: "pixelated" }}
+            onError={() => setError(true)}
+        />
+    );
+}
+
+SymbolImageFallback.propTypes = {
+    src: PropTypes.string.isRequired,
+    alt: PropTypes.string.isRequired,
+    width: PropTypes.number.isRequired,
+    height: PropTypes.number.isRequired,
+};
 
 /**
  * Rose des vents
@@ -143,14 +185,11 @@ function LegendItem({ item, imageWidth, imageHeight }) {
         // Pictogramme image
         if (symbol?.imageFile) {
             return (
-                <img
+                <SymbolImageFallback
                     src={symbolUrl(symbol.imageFile)}
                     alt={symbol.label}
                     width={item.width}
                     height={item.height}
-                    className="select-none"
-                    draggable={false}
-                    style={{ imageRendering: "pixelated" }}
                 />
             );
         }

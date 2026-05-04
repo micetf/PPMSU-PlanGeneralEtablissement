@@ -1,7 +1,7 @@
 /**
  * @fileoverview Canvas principal avec couches image, symboles et contours
  */
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback, useState } from "react";
 import PropTypes from "prop-types";
 import { useApp } from "../../hooks/useApp";
 import { useZoomPan } from "../../hooks/useZoomPan";
@@ -64,8 +64,42 @@ ZoomControls.propTypes = {
 };
 
 /**
- * @param {{ cursorPoint: object|null, onMouseMove: Function,
- *           onCanvasClick: Function, onDblClick: Function }} props
+ * Écran d'erreur affiché si l'image de fond est corrompue
+ * @param {{ onReset: Function }} props
+ */
+function ImageErrorScreen({ onReset }) {
+    return (
+        <div
+            className="absolute inset-0 flex flex-col items-center justify-center
+                    gap-4 bg-slate-100"
+        >
+            <div className="text-4xl">🖼️</div>
+            <div className="text-center">
+                <p className="text-sm font-semibold text-slate-700">
+                    Image inaccessible
+                </p>
+                <p className="mt-1 text-xs text-slate-500 max-w-xs">
+                    L'image de fond du projet n'a pas pu être chargée. Elle est
+                    peut-être corrompue ou trop volumineuse.
+                </p>
+            </div>
+            <button
+                type="button"
+                onClick={onReset}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-500 text-white
+                   hover:bg-blue-600 focus:outline-none focus-visible:ring-2
+                   focus-visible:ring-blue-400 transition-colors"
+            >
+                Retour à l'accueil
+            </button>
+        </div>
+    );
+}
+ImageErrorScreen.propTypes = { onReset: PropTypes.func.isRequired };
+
+/**
+ * @param {{ cursorPoint:object|null, onMouseMove:Function,
+ *           onCanvasClick:Function, onDblClick:Function }} props
  */
 export function WorkspaceCanvas({
     cursorPoint,
@@ -77,9 +111,10 @@ export function WorkspaceCanvas({
     const containerRef = useRef(null);
     const { handleWheel, handleMouseDown, handleMouseMove, handleMouseUp } =
         useZoomPan();
-    const { zoom, panOffset } = state.ui;
+    const [imgError, setImgError] = useState(false);
 
     const { src, naturalWidth, naturalHeight } = state.image;
+    const { zoom, panOffset } = state.ui;
     const projectId = state.project.id;
 
     useEffect(() => {
@@ -115,7 +150,6 @@ export function WorkspaceCanvas({
         });
     }, [naturalWidth, naturalHeight, actions]);
 
-    // Fusion des handlers souris : zoom/pan + contour
     const handleMove = useCallback(
         (e) => {
             handleMouseMove(e);
@@ -141,40 +175,48 @@ export function WorkspaceCanvas({
             onDoubleClick={onDblClick}
             aria-label="Canvas de légende PPMS"
         >
-            <div
-                className="absolute origin-top-left"
-                style={{
-                    transform: `translate(${panOffset.x}px, ${panOffset.y}px)`,
-                    width: imgW,
-                    height: imgH,
-                }}
-            >
-                <img
-                    src={src}
-                    alt="Vue aérienne de l'établissement"
-                    width={imgW}
-                    height={imgH}
-                    className="absolute inset-0 select-none"
-                    draggable={false}
-                />
+            {imgError && <ImageErrorScreen onReset={actions.resetProject} />}
 
-                {/* Couche contours SVG */}
-                <ContourLayer
-                    imageWidth={imgW}
-                    imageHeight={imgH}
-                    cursorPoint={cursorPoint}
-                />
+            {!imgError && (
+                <div
+                    className="absolute origin-top-left"
+                    style={{
+                        transform: `translate(${panOffset.x}px, ${panOffset.y}px)`,
+                        width: imgW,
+                        height: imgH,
+                    }}
+                >
+                    {/* key force le remontage si l'image ou le projet change
+              → réinitialise imgError sans passer par un effet */}
+                    <img
+                        key={`${src}-${projectId}`}
+                        src={src}
+                        alt="Vue aérienne de l'établissement"
+                        width={imgW}
+                        height={imgH}
+                        className="absolute inset-0 select-none"
+                        draggable={false}
+                        onError={() => setImgError(true)}
+                    />
+                    <ContourLayer
+                        imageWidth={imgW}
+                        imageHeight={imgH}
+                        cursorPoint={cursorPoint}
+                    />
+                    <SymbolLayer imageWidth={imgW} imageHeight={imgH} />
+                </div>
+            )}
 
-                {/* Couche symboles */}
-                <SymbolLayer imageWidth={imgW} imageHeight={imgH} />
-            </div>
-
-            <ZoomControls
-                onZoomIn={() => actions.setZoom(state.ui.zoom * 1.2)}
-                onZoomOut={() => actions.setZoom(state.ui.zoom * 0.8)}
-                onReset={handleReset}
-            />
-            <ZoomIndicator zoom={zoom} />
+            {!imgError && (
+                <>
+                    <ZoomControls
+                        onZoomIn={() => actions.setZoom(state.ui.zoom * 1.2)}
+                        onZoomOut={() => actions.setZoom(state.ui.zoom * 0.8)}
+                        onReset={handleReset}
+                    />
+                    <ZoomIndicator zoom={zoom} />
+                </>
+            )}
         </div>
     );
 }
