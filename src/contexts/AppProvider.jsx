@@ -5,6 +5,7 @@ import { useReducer, useCallback } from "react";
 import { AppContext } from "./appContext";
 import { appReducer, initialState, ACTION_TYPES } from "../reducers/appReducer";
 import { getSymbolByKey } from "../constants/ppmsLegend";
+import { storeImage, retrieveImage, removeImage } from "../utils/imageStore";
 
 /**
  * Fournisseur du contexte applicatif
@@ -132,6 +133,14 @@ export function AppProvider({ children }) {
         []
     );
 
+    /** @param {string} pathId @param {number} index @param {{x:number,y:number}} point */
+    const updateContourPoint = useCallback((pathId, index, point) => {
+        dispatch({
+            type: ACTION_TYPES.UPDATE_CONTOUR_POINT,
+            payload: { pathId, index, point },
+        });
+    }, []);
+
     // ── UI ─────────────────────────────────────────────────────────────────────
 
     /** @param {'select'|'place'|'draw'|'text'} tool */
@@ -172,19 +181,29 @@ export function AppProvider({ children }) {
     // ── PERSISTANCE ────────────────────────────────────────────────────────────
 
     /**
-     * @returns {{ success: boolean, error?: string }}
+     * Sauvegarde le projet : état en localStorage, image en IndexedDB
+     * @returns {Promise<{ success: boolean, error?: string }>}
      */
-    const saveProject = useCallback(() => {
+    const saveProject = useCallback(async () => {
         try {
+            // Sépare l'image du reste — IndexedDB n'a pas de limite de quota
+            const { image, ...stateWithoutImage } = state;
             const snapshot = {
-                ...state,
+                ...stateWithoutImage,
                 version: "1.0",
                 savedAt: new Date().toISOString(),
             };
+
+            // Métadonnées en localStorage (légères)
             localStorage.setItem(
                 `ppms_project_${state.project.id}`,
                 JSON.stringify(snapshot)
             );
+
+            // Image en IndexedDB (peut dépasser 5 Mo)
+            await storeImage(state.project.id, image);
+
+            // Mise à jour de l'index
             const index = JSON.parse(
                 localStorage.getItem("ppms_projects") ?? "[]"
             );
@@ -206,10 +225,11 @@ export function AppProvider({ children }) {
     }, [state]);
 
     /**
+     * Charge un projet depuis localStorage + IndexedDB
      * @param {string} projectId
-     * @returns {{ success: boolean, error?: string }}
+     * @returns {Promise<{ success: boolean, error?: string }>}
      */
-    const loadProject = useCallback((projectId) => {
+    const loadProject = useCallback(async (projectId) => {
         try {
             const raw = localStorage.getItem(`ppms_project_${projectId}`);
             if (!raw)
@@ -217,9 +237,31 @@ export function AppProvider({ children }) {
                     success: false,
                     error: "Projet introuvable en mémoire locale",
                 };
+
+            const snapshot = JSON.parse(raw);
+
+            // Récupère l'image depuis IndexedDB (nouveau format)
+            let image = await retrieveImage(projectId);
+
+            // Rétrocompatibilité : image dans le snapshot (ancien format localStorage)
+            if (!image && snapshot.image?.src) image = snapshot.image;
+
+            if (!image) {
+                return {
+                    success: false,
+                    error: "Image du projet introuvable — veuillez recharger le plan manuellement.",
+                };
+            }
+
+            // Reconstruit l'état complet sans les champs techniques de snapshot
+            const projectState = { ...snapshot };
+            delete projectState.version;
+            delete projectState.savedAt;
+            delete projectState.image;
+
             dispatch({
                 type: ACTION_TYPES.LOAD_PROJECT,
-                payload: JSON.parse(raw),
+                payload: { ...projectState, image },
             });
             return { success: true };
         } catch (err) {
@@ -227,21 +269,26 @@ export function AppProvider({ children }) {
         }
     }, []);
 
-    /** @returns {Array} */
-    const listProjects = useCallback(
-        () => JSON.parse(localStorage.getItem("ppms_projects") ?? "[]"),
-        []
-    );
-
-    /** @param {string} projectId */
-    const deleteProject = useCallback((projectId) => {
+    /**
+     * Supprime un projet de localStorage et son image d'IndexedDB
+     * @param {string} projectId
+     * @returns {Promise<void>}
+     */
+    const deleteProject = useCallback(async (projectId) => {
         localStorage.removeItem(`ppms_project_${projectId}`);
         const index = JSON.parse(localStorage.getItem("ppms_projects") ?? "[]");
         localStorage.setItem(
             "ppms_projects",
             JSON.stringify(index.filter((p) => p.id !== projectId))
         );
+        await removeImage(projectId);
     }, []);
+
+    /** @returns {Array} */
+    const listProjects = useCallback(
+        () => JSON.parse(localStorage.getItem("ppms_projects") ?? "[]"),
+        []
+    );
 
     const resetProject = useCallback(
         () => dispatch({ type: ACTION_TYPES.RESET_PROJECT }),
@@ -275,6 +322,7 @@ export function AppProvider({ children }) {
         deleteProject,
         resetProject,
         setProjectInfo,
+        updateContourPoint,
     };
 
     return (

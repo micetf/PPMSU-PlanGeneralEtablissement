@@ -25,6 +25,7 @@ export const ACTION_TYPES = {
     SET_SELECTED_ITEM: "SET_SELECTED_ITEM",
     SET_ZOOM: "SET_ZOOM",
     SET_PAN: "SET_PAN",
+    UPDATE_CONTOUR_POINT: "UPDATE_CONTOUR_POINT",
 };
 
 /**
@@ -275,6 +276,22 @@ export function appReducer(state, action) {
             return {
                 ...state,
                 ui: { ...state.ui, panOffset: payload },
+            };
+
+        case ACTION_TYPES.UPDATE_CONTOUR_POINT:
+            return {
+                ...state,
+                contourPaths: state.contourPaths.map((p) =>
+                    p.id === payload.pathId
+                        ? {
+                              ...p,
+                              points: p.points.map((pt, i) =>
+                                  i === payload.index ? payload.point : pt
+                              ),
+                          }
+                        : p
+                ),
+                ui: { ...state.ui, isDirty: true },
             };
 
         default:
