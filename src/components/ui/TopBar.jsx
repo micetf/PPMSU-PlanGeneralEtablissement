@@ -6,6 +6,7 @@ import PropTypes from "prop-types";
 import { useApp } from "../../hooks/useApp";
 import { useProjectManager } from "../../hooks/useProjectManager";
 import { ProjectModal } from "./ProjectModal";
+import { exportToPng } from "../../utils/exportCanvas";
 
 /**
  * Indicateur d'état de sauvegarde
@@ -125,6 +126,23 @@ export function TopBar() {
                        focus-visible:ring-2 focus-visible:ring-blue-400"
                     >
                         {isSaving ? "…" : "💾 Sauvegarder"}
+                    </button>
+                )}
+                {hasImage && (
+                    <button
+                        type="button"
+                        onClick={() =>
+                            exportToPng(
+                                state,
+                                `plan-ppms-${state.project.schoolName || state.project.name}.png`
+                            )
+                        }
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
+               font-medium bg-emerald-500 text-white hover:bg-emerald-600
+               transition-colors focus:outline-none
+               focus-visible:ring-2 focus-visible:ring-emerald-400"
+                    >
+                        📥 Exporter
                     </button>
                 )}
             </header>
