@@ -1,16 +1,67 @@
-# React + Vite
+# PPMS — Plan Général de l'Établissement
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Outil de légendage de plan d'établissement scolaire, conforme au **fascicule 2**
+du PPMS Unifié (Eduscol).
 
-Currently, two official plugins are available:
+## Fonctionnalités
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Chargement d'une vue aérienne (JPG, PNG, WebP — 10 Mo max)
+- Catalogue officiel de 14 symboles répartis en 9 catégories
+- Placement et déplacement des pictogrammes
+- Tracé polygonal : délimitation du site et zones de mise en sûreté
+- Panneau de propriétés : taille, rotation, opacité, étiquette
+- Sauvegarde locale (IndexedDB + localStorage)
+- Export du plan légendé en PNG à la résolution native
+- Export/import de projet au format .ppmsu (partage entre postes)
 
-## React Compiler
+## Stack technique
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- React 19 + Vite 8 (sans TypeScript)
+- Tailwind CSS v4
+- Persistance : localStorage (métadonnées) + IndexedDB (images)
+- Aucune dépendance de rendu externe (Canvas 2D natif)
 
-## Expanding the ESLint configuration
+## Installation
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+pnpm install
+pnpm dev
+```
+
+## Déploiement
+
+```bash
+pnpm build
+# Dossier dist/ à déposer sur le serveur
+```
+
+Adapter `base` dans `vite.config.js` selon le sous-répertoire de déploiement.
+
+## Pictogrammes officiels
+
+Les images dans `public/symbols/` sont extraites du document `legendes.docx`
+fourni par l'autorité pédagogique (fascicule 2, Eduscol).
+
+```bash
+# Pour les régénérer depuis le docx officiel :
+bash scripts/copy-symbols.sh legendes.docx
+```
+
+## Format de projet .ppmsu
+
+Fichier JSON auto-contenu (état + image en base64).
+Permet le partage entre postes sans infrastructure serveur.
+
+## Raccourcis clavier
+
+| Touche          | Action                                            |
+| --------------- | ------------------------------------------------- |
+| `Échap`         | _(à implémenter)_ Annuler le tracé en cours       |
+| `Suppr`         | _(à implémenter)_ Supprimer l'élément sélectionné |
+| `Alt + glisser` | Déplacer la vue (pan)                             |
+| `Molette`       | Zoom centré sur le curseur                        |
+
+## Référence
+
+Fascicule 2 — PPMS Unifié, Eduscol
+https://eduscol.education.fr/
