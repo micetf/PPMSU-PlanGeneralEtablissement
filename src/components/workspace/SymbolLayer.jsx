@@ -8,6 +8,9 @@ import { useApp } from "../../hooks/useApp";
 import { useDrag } from "../../hooks/useDrag";
 import { symbolUrl } from "../../utils/assetPath";
 
+/**
+ * Rose des vents
+ */
 function NorthArrow() {
     return (
         <svg viewBox="0 0 40 40" width="40" height="40" aria-label="Nord">
@@ -17,6 +20,51 @@ function NorthArrow() {
         </svg>
     );
 }
+
+/**
+ * Pentagone SVG — Zone de mise en sûreté
+ * @param {{ width:number, height:number, color:string,
+ *           fillColor:string, fillOpacity:number }} props
+ */
+function PentagonSymbol({ width, height, color, fillColor, fillOpacity }) {
+    const cx = width / 2;
+    const cy = height / 2;
+    // Rayon inscrit légèrement réduit pour laisser de la marge au trait
+    const rx = width / 2 - 2;
+    const ry = height / 2 - 2;
+
+    const points = Array.from({ length: 5 }, (_, i) => {
+        const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+        return `${cx + rx * Math.cos(angle)},${cy + ry * Math.sin(angle)}`;
+    }).join(" ");
+
+    return (
+        <svg
+            width={width}
+            height={height}
+            viewBox={`0 0 ${width} ${height}`}
+            aria-label="Zone de mise en sûreté"
+            overflow="visible"
+        >
+            <polygon
+                points={points}
+                fill={fillColor}
+                fillOpacity={fillOpacity}
+                stroke={color}
+                strokeWidth="2"
+                strokeLinejoin="round"
+            />
+        </svg>
+    );
+}
+
+PentagonSymbol.propTypes = {
+    width: PropTypes.number.isRequired,
+    height: PropTypes.number.isRequired,
+    color: PropTypes.string.isRequired,
+    fillColor: PropTypes.string.isRequired,
+    fillOpacity: PropTypes.number.isRequired,
+};
 
 /**
  * @param {{ item: object, imageWidth: number, imageHeight: number }} props
@@ -59,8 +107,25 @@ function LegendItem({ item, imageWidth, imageHeight }) {
     };
 
     const renderContent = () => {
-        if (item.type === "compose" && symbol?.shape === "north_arrow")
+        // Rose des vents
+        if (item.type === "compose" && symbol?.shape === "north_arrow") {
             return <NorthArrow />;
+        }
+
+        // Pentagone ZMS
+        if (symbol?.shape === "pentagon") {
+            return (
+                <PentagonSymbol
+                    width={item.width}
+                    height={item.height}
+                    color={symbol.color}
+                    fillColor={symbol.fillColor}
+                    fillOpacity={symbol.fillOpacity}
+                />
+            );
+        }
+
+        // Annotation texte
         if (item.type === "texte") {
             return (
                 <span
@@ -70,10 +135,12 @@ function LegendItem({ item, imageWidth, imageHeight }) {
                         textShadow: "1px 1px 2px #000, -1px -1px 2px #000",
                     }}
                 >
-                    {item.label}
+                    {item.label || symbol?.label}
                 </span>
             );
         }
+
+        // Pictogramme image
         if (symbol?.imageFile) {
             return (
                 <img
@@ -87,6 +154,7 @@ function LegendItem({ item, imageWidth, imageHeight }) {
                 />
             );
         }
+
         return null;
     };
 
@@ -100,7 +168,7 @@ function LegendItem({ item, imageWidth, imageHeight }) {
             aria-label={symbol?.label ?? item.label}
             aria-pressed={isSelected}
             onMouseDown={handleMouseDown}
-            onClick={(e) => e.stopPropagation()} // ← empêche le canvas de désélectionner
+            onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.key === "Enter" && actions.selectItem(item.id)}
             style={{
                 position: "absolute",

@@ -78,7 +78,7 @@ export function SymbolPreview({ symbol }) {
     if (type === ELEMENT_TYPES.COMPOSE && shape === "north_arrow") {
         return <MiniNorthArrow />;
     }
-    if (type === ELEMENT_TYPES.ZONE && shape === "pentagon") {
+    if (shape === "pentagon") {
         return (
             <MiniPentagon
                 color={color}

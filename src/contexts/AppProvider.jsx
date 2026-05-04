@@ -47,6 +47,10 @@ export function AppProvider({ children }) {
     const addLegendItem = useCallback((symbolKey, x, y) => {
         const symbol = getSymbolByKey(symbolKey);
         if (!symbol) return;
+
+        // Taille par défaut selon la nature du symbole
+        const defaultSize = symbol.shape === "pentagon" ? 80 : 48;
+
         dispatch({
             type: ACTION_TYPES.ADD_LEGEND_ITEM,
             payload: {
@@ -55,6 +59,8 @@ export function AppProvider({ children }) {
                 y,
                 type: symbol.type,
                 label: symbol.label,
+                width: defaultSize,
+                height: defaultSize,
             },
         });
     }, []);

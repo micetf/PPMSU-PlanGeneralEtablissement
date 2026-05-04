@@ -138,7 +138,7 @@ export const PPMS_SYMBOLS = [
         key: "zone_mise_en_surete",
         category: PPMS_CATEGORIES.MISE_EN_SURETE,
         label: "Zone de mise en sûreté",
-        type: ELEMENT_TYPES.ZONE,
+        type: ELEMENT_TYPES.SYMBOL, // ← était ELEMENT_TYPES.ZONE
         shape: "pentagon",
         color: "#43729D",
         strokeWidth: 2,
