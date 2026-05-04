@@ -3,6 +3,7 @@
  */
 import PropTypes from "prop-types";
 import { ELEMENT_TYPES } from "../../constants/ppmsLegend";
+import { symbolUrl } from "../../utils/assetPath";
 
 /**
  * Pentagone SVG miniature
@@ -106,7 +107,7 @@ export function SymbolPreview({ symbol }) {
     if (imageFile) {
         return (
             <img
-                src={`/symbols/${imageFile}`}
+                src={symbolUrl(imageFile)}
                 alt=""
                 className="max-w-8 max-h-8 object-contain"
                 style={{ imageRendering: "pixelated" }}

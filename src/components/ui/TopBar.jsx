@@ -7,6 +7,8 @@ import { useApp } from "../../hooks/useApp";
 import { useProjectManager } from "../../hooks/useProjectManager";
 import { ProjectModal } from "./ProjectModal";
 import { exportToPng } from "../../utils/exportCanvas";
+import { exportProject } from "../../utils/projectIO";
+import { ImportButton } from "./ImportButton";
 
 /**
  * Indicateur d'état de sauvegarde
@@ -112,6 +114,24 @@ export function TopBar() {
                 >
                     📁 Projets
                 </button>
+
+                {hasImage && (
+                    <>
+                        {/* Export .ppmsu */}
+                        <button
+                            type="button"
+                            onClick={() => exportProject(state)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
+                 text-slate-600 hover:bg-slate-100 transition-colors
+                 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                        >
+                            📤 Exporter
+                        </button>
+
+                        {/* Import .ppmsu */}
+                        <ImportButton variant="topbar" />
+                    </>
+                )}
 
                 {/* Bouton — sauvegarder */}
                 {hasImage && (

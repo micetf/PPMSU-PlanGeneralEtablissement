@@ -1,11 +1,10 @@
 /**
- * @fileoverview Écran d'accueil — orchestrateur du démarrage de l'application
- * Responsabilité unique : composer DropZone et SavedProjectsList
- * La gestion des projets est déléguée à useProjectManager.
+ * @fileoverview Écran d'accueil
  */
 import { useProjectManager } from "../../hooks/useProjectManager";
 import { DropZone } from "./DropZone";
 import { SavedProjectsList } from "./SavedProjectsList";
+import { ImportButton } from "./ImportButton";
 
 export function HomeScreen() {
     const { projects, handleLoad, handleDelete } = useProjectManager();
@@ -25,19 +24,24 @@ export function HomeScreen() {
                 </p>
             </div>
 
-            {/* Nouveau projet — chargement d'image */}
+            {/* Nouveau projet */}
             <DropZone />
+
+            {/* Import d'un projet existant */}
+            <ImportButton variant="home" />
 
             {/* Séparateur conditionnel */}
             {projects.length > 0 && (
                 <div className="flex items-center gap-4 w-full max-w-xl">
                     <hr className="flex-1 border-slate-300" />
-                    <span className="text-xs text-slate-400 shrink-0">ou</span>
+                    <span className="text-xs text-slate-400 shrink-0">
+                        projets locaux
+                    </span>
                     <hr className="flex-1 border-slate-300" />
                 </div>
             )}
 
-            {/* Projets existants */}
+            {/* Projets sauvegardés localement */}
             <SavedProjectsList
                 projects={projects}
                 onLoad={handleLoad}

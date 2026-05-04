@@ -5,6 +5,7 @@
  */
 
 import { getSymbolByKey } from "../constants/ppmsLegend";
+import { symbolUrl } from "./assetPath";
 
 /**
  * Charge une image depuis une URL et retourne un HTMLImageElement
@@ -198,7 +199,7 @@ export async function exportToPng(state, fileName = "plan-ppms.png") {
     await Promise.all(
         symbolFiles.map(async (file) => {
             try {
-                const img = await loadImage(`/symbols/${file}`);
+                const img = await loadImage(symbolUrl(file));
                 imageCache.set(file, img);
             } catch {
                 console.warn(`[export] Image symbole manquante : ${file}`);

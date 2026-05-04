@@ -6,6 +6,7 @@ import { AppContext } from "./appContext";
 import { appReducer, initialState, ACTION_TYPES } from "../reducers/appReducer";
 import { getSymbolByKey } from "../constants/ppmsLegend";
 import { storeImage, retrieveImage, removeImage } from "../utils/imageStore";
+import { importProject as parseImportFile } from "../utils/projectIO";
 
 /**
  * Fournisseur du contexte applicatif
@@ -270,6 +271,41 @@ export function AppProvider({ children }) {
     }, []);
 
     /**
+     * Importe un projet depuis un fichier .ppmsu
+     * Sauvegarde automatiquement l'image en IndexedDB
+     * @param {File} file
+     * @returns {Promise<{ success: boolean, error?: string }>}
+     */
+    const importProject = useCallback(async (file) => {
+        const result = await parseImportFile(file);
+        if (!result.success) return result;
+
+        const { data } = result;
+
+        // Génère un nouvel ID pour éviter les collisions avec des projets locaux
+        const newId = crypto.randomUUID();
+        const projectState = {
+            project: { ...data.project, id: newId },
+            image: data.image,
+            legendItems: data.legendItems,
+            contourPaths: data.contourPaths,
+        };
+
+        // Stocke l'image en IndexedDB
+        try {
+            await storeImage(newId, data.image);
+        } catch (err) {
+            console.warn(
+                "[AppProvider] Stockage IndexedDB échoué, image conservée en mémoire",
+                err
+            );
+        }
+
+        dispatch({ type: ACTION_TYPES.LOAD_PROJECT, payload: projectState });
+        return { success: true };
+    }, []);
+
+    /**
      * Supprime un projet de localStorage et son image d'IndexedDB
      * @param {string} projectId
      * @returns {Promise<void>}
@@ -323,6 +359,7 @@ export function AppProvider({ children }) {
         resetProject,
         setProjectInfo,
         updateContourPoint,
+        importProject,
     };
 
     return (

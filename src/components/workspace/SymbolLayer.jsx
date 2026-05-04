@@ -6,6 +6,7 @@ import { useRef } from "react";
 import { getSymbolByKey } from "../../constants/ppmsLegend";
 import { useApp } from "../../hooks/useApp";
 import { useDrag } from "../../hooks/useDrag";
+import { symbolUrl } from "../../utils/assetPath";
 
 function NorthArrow() {
     return (
@@ -76,7 +77,7 @@ function LegendItem({ item, imageWidth, imageHeight }) {
         if (symbol?.imageFile) {
             return (
                 <img
-                    src={`/symbols/${symbol.imageFile}`}
+                    src={symbolUrl(symbol.imageFile)}
                     alt={symbol.label}
                     width={item.width}
                     height={item.height}
