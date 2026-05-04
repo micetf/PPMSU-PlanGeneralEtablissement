@@ -1,5 +1,8 @@
+/**
+ * @fileoverview Composant racine
+ */
 import { AppProvider } from "./contexts/AppProvider";
-import { ImageLoader } from "./components/ui/ImageLoader";
+import { HomeScreen } from "./components/ui/HomeScreen";
 import { LegendToolbar } from "./components/ui/LegendToolbar";
 import { PropertiesPanel } from "./components/ui/PropertiesPanel";
 import { TopBar } from "./components/ui/TopBar";
@@ -19,13 +22,11 @@ function WorkspaceLayout() {
     const handleCanvasClick = (e) => {
         const { selectedTool, selectedSymbolKey } = state.ui;
 
-        // ── Outil tracé ────────────────────────────────────────────────────────
         if (selectedTool === "draw") {
             contourClick(e);
             return;
         }
 
-        // ── Outil placement ────────────────────────────────────────────────────
         if (selectedTool === "place" && selectedSymbolKey) {
             const rect = e.currentTarget.getBoundingClientRect();
             const { zoom, panOffset } = state.ui;
@@ -40,15 +41,8 @@ function WorkspaceLayout() {
             return;
         }
 
-        // ── Outil sélection — désélectionner UNIQUEMENT sur le fond ────────────
-        // Les éléments SVG (polygon, polyline, g, circle, text…) gèrent
-        // leur propre sélection. On ne désélectionne que si le clic
-        // atterrit sur l'image de fond ou le conteneur.
         const tag = e.target.tagName.toLowerCase();
-        const isBackground = tag === "img" || tag === "div";
-        if (isBackground) {
-            actions.selectItem(null);
-        }
+        if (tag === "img" || tag === "div") actions.selectItem(null);
     };
 
     return (
@@ -70,9 +64,14 @@ function WorkspaceLayout() {
     );
 }
 
+/**
+ * Aiguilleur racine — HomeScreen OU WorkspaceLayout
+ * Les deux ne sont jamais montés simultanément → useProjectManager
+ * n'est instancié qu'une seule fois à la fois.
+ */
 function AppRouter() {
     const { state } = useApp();
-    return state.image.src ? <WorkspaceLayout /> : <ImageLoader />;
+    return state.image.src ? <WorkspaceLayout /> : <HomeScreen />;
 }
 
 export default function App() {
