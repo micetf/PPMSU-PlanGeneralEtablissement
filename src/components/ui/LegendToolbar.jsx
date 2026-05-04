@@ -27,8 +27,8 @@ const CATEGORY_ORDER = [
 ];
 
 /**
- * Bouton d'outil global (sélection, etc.)
- * @param {{ icon: string, label: string, active: boolean, onClick: Function }} props
+ * Bouton d'outil global
+ * @param {{ icon:string, label:string, active:boolean, onClick:Function }} props
  */
 function ToolButton({ icon, label, active, onClick }) {
     return (
@@ -61,20 +61,95 @@ ToolButton.propTypes = {
 };
 
 /**
- * Barre latérale de légende PPMS
- * @param {{ className?: string }} props
+ * Bandeau d'état de l'outil actif — affiché en bas de la toolbar
+ * @param {{ tool:string, symbolKey:string|null, onCancel:Function }} props
  */
-export function LegendToolbar({ className }) {
+function ActiveToolBanner({ tool, symbolKey, onCancel }) {
+    if (tool === "select" || !symbolKey) return null;
+
+    const symbol = getSymbolByKey(symbolKey);
+    if (!symbol) return null;
+
+    const isDraw = tool === "draw";
+    const message = isDraw
+        ? "Cliquez pour poser les sommets"
+        : "Cliquez sur le plan pour placer";
+
+    const hint = isDraw
+        ? "Clic sur le point de départ ou double-clic pour terminer"
+        : "Appuyez sur Échap pour annuler";
+
+    return (
+        <div
+            className={[
+                "px-3 py-2 border-t border-slate-200",
+                isDraw ? "bg-amber-50" : "bg-blue-50",
+            ].join(" ")}
+        >
+            {/* Nom du symbole actif */}
+            <p
+                className={[
+                    "text-[10px] font-semibold truncate mb-0.5",
+                    isDraw ? "text-amber-700" : "text-blue-700",
+                ].join(" ")}
+            >
+                {isDraw ? "✏️" : "📍"} {symbol.label}
+            </p>
+
+            {/* Instruction principale */}
+            <p
+                className={[
+                    "text-[10px]",
+                    isDraw ? "text-amber-600" : "text-blue-600",
+                ].join(" ")}
+            >
+                {message}
+            </p>
+
+            {/* Astuce contextuelle */}
+            <p className="text-[10px] text-slate-400 mt-0.5">{hint}</p>
+
+            {/* Bouton annulation */}
+            <button
+                type="button"
+                onClick={onCancel}
+                className={[
+                    "mt-1.5 text-[10px] underline focus:outline-none rounded",
+                    "focus-visible:ring-1",
+                    isDraw
+                        ? "text-amber-500 hover:text-amber-700 focus-visible:ring-amber-400"
+                        : "text-blue-400 hover:text-blue-600 focus-visible:ring-blue-400",
+                ].join(" ")}
+            >
+                Annuler (Échap)
+            </button>
+        </div>
+    );
+}
+
+ActiveToolBanner.propTypes = {
+    tool: PropTypes.string.isRequired,
+    symbolKey: PropTypes.string,
+    onCancel: PropTypes.func.isRequired,
+};
+
+ActiveToolBanner.defaultProps = {
+    symbolKey: null,
+};
+
+/**
+ * Barre latérale de légende PPMS
+ */
+export function LegendToolbar() {
     const { state, actions } = useApp();
     const symbolsByCategory = getSymbolsByCategory();
+    const { selectedTool, selectedSymbolKey } = state.ui;
 
     const handleSelectSymbol = (key) => {
         const symbol = getSymbolByKey(key);
         if (!symbol) return;
 
         if (symbol.type === ELEMENT_TYPES.CONTOUR) {
-            // Seul CONTOUR déclenche l'outil de tracé
-            // ZMS est désormais SYMBOL → outil place
             actions.selectSymbol(key);
             actions.setTool("draw");
         } else {
@@ -82,19 +157,16 @@ export function LegendToolbar({ className }) {
         }
     };
 
-    const isSelectTool = state.ui.selectedTool === "select";
+    const handleCancel = () => actions.setTool("select");
 
     return (
         <aside
-            className={[
-                "flex flex-col bg-white border-r border-slate-200",
-                "w-52 shrink-0 overflow-y-auto",
-                className ?? "",
-            ].join(" ")}
+            className="flex flex-col bg-white border-r border-slate-200
+                 w-52 shrink-0 overflow-hidden"
             aria-label="Outils de légende PPMS"
         >
-            {/* En-tête toolbar */}
-            <div className="px-3 py-3 border-b border-slate-200">
+            {/* En-tête */}
+            <div className="px-3 py-3 border-b border-slate-200 shrink-0">
                 <h2 className="text-sm font-bold text-slate-700">
                     Légende PPMS
                 </h2>
@@ -103,58 +175,75 @@ export function LegendToolbar({ className }) {
                 </p>
             </div>
 
-            {/* Outils globaux */}
-            <div className="px-2 py-2 border-b border-slate-200 flex flex-col gap-1">
+            {/* Outil sélection */}
+            <div className="px-2 py-2 border-b border-slate-200 shrink-0">
                 <ToolButton
                     icon="↖"
                     label="Sélectionner"
-                    active={isSelectTool}
-                    onClick={() => actions.setTool("select")}
+                    active={selectedTool === "select"}
+                    onClick={handleCancel}
                 />
             </div>
 
-            {/* Catalogue par catégorie */}
+            {/* Catalogue — scrollable */}
             <div className="flex-1 overflow-y-auto">
-                {CATEGORY_ORDER.map((catKey) => {
-                    const symbols = symbolsByCategory[catKey];
-                    if (!symbols?.length) return null;
-                    return (
-                        <CategorySection
-                            key={catKey}
-                            label={CATEGORY_LABELS[catKey]}
-                            symbols={symbols}
-                            selectedKey={state.ui.selectedSymbolKey}
-                            onSelect={handleSelectSymbol}
-                        />
-                    );
-                })}
+                {/* Section outils de tracé — séparée visuellement */}
+                <div className="border-b border-slate-200">
+                    <p
+                        className="px-3 py-1.5 text-[10px] font-semibold text-slate-400
+                        uppercase tracking-wide bg-slate-50"
+                    >
+                        Outils de tracé
+                    </p>
+                    {[PPMS_CATEGORIES.DELIMITATION].map((catKey) => {
+                        const symbols = symbolsByCategory[catKey];
+                        if (!symbols?.length) return null;
+                        return (
+                            <CategorySection
+                                key={catKey}
+                                label={CATEGORY_LABELS[catKey]}
+                                symbols={symbols}
+                                selectedKey={selectedSymbolKey}
+                                onSelect={handleSelectSymbol}
+                            />
+                        );
+                    })}
+                </div>
+
+                {/* Section symboles ponctuels */}
+                <div>
+                    <p
+                        className="px-3 py-1.5 text-[10px] font-semibold text-slate-400
+                        uppercase tracking-wide bg-slate-50"
+                    >
+                        Symboles
+                    </p>
+                    {CATEGORY_ORDER.filter(
+                        (k) => k !== PPMS_CATEGORIES.DELIMITATION
+                    ).map((catKey) => {
+                        const symbols = symbolsByCategory[catKey];
+                        if (!symbols?.length) return null;
+                        return (
+                            <CategorySection
+                                key={catKey}
+                                label={CATEGORY_LABELS[catKey]}
+                                symbols={symbols}
+                                selectedKey={selectedSymbolKey}
+                                onSelect={handleSelectSymbol}
+                            />
+                        );
+                    })}
+                </div>
             </div>
 
-            {/* Pied de toolbar — info outil actif */}
-            {state.ui.selectedSymbolKey && (
-                <div className="px-3 py-2 border-t border-slate-200 bg-blue-50">
-                    <p className="text-[10px] text-blue-600 font-medium">
-                        Cliquez sur le plan pour placer l'élément
-                    </p>
-                    <button
-                        type="button"
-                        onClick={() => actions.setTool("select")}
-                        className="mt-1 text-[10px] text-blue-400 hover:text-blue-600
-                       underline focus:outline-none focus-visible:ring-1
-                       focus-visible:ring-blue-400 rounded"
-                    >
-                        Annuler
-                    </button>
-                </div>
-            )}
+            {/* Bandeau outil actif — en bas, toujours visible */}
+            <div className="shrink-0">
+                <ActiveToolBanner
+                    tool={selectedTool}
+                    symbolKey={selectedSymbolKey}
+                    onCancel={handleCancel}
+                />
+            </div>
         </aside>
     );
 }
-
-LegendToolbar.propTypes = {
-    className: PropTypes.string,
-};
-
-LegendToolbar.defaultProps = {
-    className: "",
-};

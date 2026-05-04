@@ -1,7 +1,7 @@
 /**
  * @fileoverview Panneau de propriétés de l'élément sélectionné
- * Affiché en superposition sur le bord droit du canvas
  */
+import { useState } from "react";
 import PropTypes from "prop-types";
 import { useApp } from "../../hooks/useApp";
 import { useSelectedItem } from "../../hooks/useSelectedItem";
@@ -9,7 +9,7 @@ import { ELEMENT_TYPES } from "../../constants/ppmsLegend";
 import { NumberField, TextField, SliderField } from "./PropertiesField";
 
 /**
- * Bouton d'action destructrice ou secondaire
+ * Bouton d'action
  */
 function ActionButton({ label, onClick, variant }) {
     const base =
@@ -33,14 +33,152 @@ ActionButton.propTypes = {
 };
 
 /**
- * Propriétés d'un élément de légende (symbole / texte / zone)
+ * Contrôle taille avec ratio verrouillé
+ * @param {{ item:object, onChange:Function }} props
+ */
+function SizeControl({ item, onChange }) {
+    const [locked, setLocked] = useState(true);
+    const ratio = item.height > 0 ? item.width / item.height : 1;
+
+    const handleWidth = (w) => {
+        onChange({
+            width: w,
+            height: locked ? Math.round(w / ratio) : item.height,
+        });
+    };
+
+    const handleHeight = (h) => {
+        onChange({
+            height: h,
+            width: locked ? Math.round(h * ratio) : item.width,
+        });
+    };
+
+    return (
+        <div className="flex flex-col gap-1">
+            <div className="flex items-center justify-between">
+                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">
+                    Taille
+                </span>
+                {/* Bouton verrou ratio */}
+                <button
+                    type="button"
+                    onClick={() => setLocked((v) => !v)}
+                    title={
+                        locked
+                            ? "Ratio verrouillé — cliquer pour déverrouiller"
+                            : "Ratio libre — cliquer pour verrouiller"
+                    }
+                    className={[
+                        "text-[10px] px-1.5 py-0.5 rounded transition-colors",
+                        "focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400",
+                        locked
+                            ? "text-blue-500 bg-blue-50 hover:bg-blue-100"
+                            : "text-slate-400 bg-slate-100 hover:bg-slate-200",
+                    ].join(" ")}
+                    aria-pressed={locked}
+                    aria-label={
+                        locked
+                            ? "Déverrouiller le ratio"
+                            : "Verrouiller le ratio"
+                    }
+                >
+                    {locked ? "🔒" : "🔓"}
+                </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+                <NumberField
+                    label="L"
+                    value={item.width}
+                    min={16}
+                    max={800}
+                    onChange={handleWidth}
+                    unit="px"
+                />
+                <NumberField
+                    label="H"
+                    value={item.height}
+                    min={16}
+                    max={800}
+                    onChange={handleHeight}
+                    unit="px"
+                />
+            </div>
+        </div>
+    );
+}
+
+SizeControl.propTypes = {
+    item: PropTypes.object.isRequired,
+    onChange: PropTypes.func.isRequired,
+};
+
+/**
+ * Contrôle rotation — slider + champ numérique
+ * @param {{ value:number, onChange:Function }} props
+ */
+function RotationControl({ value, onChange }) {
+    return (
+        <div className="flex flex-col gap-1">
+            <div className="flex items-center justify-between">
+                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">
+                    Rotation
+                </span>
+                <span className="text-[10px] text-slate-400">
+                    {Math.round(value)}°
+                </span>
+            </div>
+
+            {/* Slider 0–360 */}
+            <input
+                type="range"
+                value={value}
+                min={0}
+                max={360}
+                step={1}
+                onChange={(e) => onChange(Number(e.target.value))}
+                className="w-full accent-blue-500"
+                aria-label="Rotation en degrés"
+            />
+
+            {/* Boutons de rotation rapide */}
+            <div className="grid grid-cols-4 gap-1 mt-0.5">
+                {[0, 90, 180, 270].map((deg) => (
+                    <button
+                        key={deg}
+                        type="button"
+                        onClick={() => onChange(deg)}
+                        className={[
+                            "py-1 rounded text-[10px] transition-colors",
+                            "focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400",
+                            Math.round(value) === deg
+                                ? "bg-blue-100 text-blue-600 font-medium"
+                                : "bg-slate-100 text-slate-500 hover:bg-slate-200",
+                        ].join(" ")}
+                    >
+                        {deg}°
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+RotationControl.propTypes = {
+    value: PropTypes.number.isRequired,
+    onChange: PropTypes.func.isRequired,
+};
+
+/**
+ * Propriétés d'un élément de légende
  */
 function LegendItemProperties({ item, symbol }) {
     const { actions } = useApp();
     const update = (changes) => actions.updateLegendItem(item.id, changes);
 
     return (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
             {/* Étiquette */}
             <TextField
                 label="Étiquette"
@@ -49,34 +187,13 @@ function LegendItemProperties({ item, symbol }) {
                 onChange={(v) => update({ label: v })}
             />
 
-            {/* Taille */}
-            <div className="grid grid-cols-2 gap-2">
-                <NumberField
-                    label="Largeur"
-                    value={item.width}
-                    min={16}
-                    max={500}
-                    onChange={(v) => update({ width: v })}
-                    unit="px"
-                />
-                <NumberField
-                    label="Hauteur"
-                    value={item.height}
-                    min={16}
-                    max={500}
-                    onChange={(v) => update({ height: v })}
-                    unit="px"
-                />
-            </div>
+            {/* Taille avec ratio verrouillé */}
+            <SizeControl item={item} onChange={update} />
 
             {/* Rotation */}
-            <NumberField
-                label="Rotation"
+            <RotationControl
                 value={item.rotation}
-                min={-180}
-                max={180}
                 onChange={(v) => update({ rotation: v })}
-                unit="°"
             />
 
             {/* Opacité */}
@@ -89,7 +206,7 @@ function LegendItemProperties({ item, symbol }) {
                 onChange={(v) => update({ opacity: v })}
             />
 
-            {/* Affichage étiquette (hors texte libre) */}
+            {/* Affichage étiquette */}
             {item.type !== ELEMENT_TYPES.TEXTE && (
                 <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -152,7 +269,7 @@ function ContourProperties({ item }) {
 ContourProperties.propTypes = { item: PropTypes.object.isRequired };
 
 /**
- * Panneau principal de propriétés
+ * Panneau principal
  */
 export function PropertiesPanel() {
     const { actions } = useApp();
@@ -177,7 +294,10 @@ export function PropertiesPanel() {
             aria-label="Propriétés de l'élément"
         >
             {/* En-tête */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+            <div
+                className="flex items-center justify-between px-4 py-3
+                      border-b border-slate-100 shrink-0"
+            >
                 <div className="min-w-0">
                     <p className="text-xs font-semibold text-slate-700 truncate">
                         {symbol?.label ?? "Élément"}
@@ -198,8 +318,8 @@ export function PropertiesPanel() {
                 </button>
             </div>
 
-            {/* Corps — propriétés selon le type */}
-            <div className="px-4 py-3 flex flex-col gap-3 overflow-y-auto max-h-[60vh]">
+            {/* Corps */}
+            <div className="px-4 py-3 flex flex-col gap-3 overflow-y-auto max-h-[70vh]">
                 {type === "legend" && (
                     <LegendItemProperties item={item} symbol={symbol} />
                 )}
@@ -207,7 +327,7 @@ export function PropertiesPanel() {
             </div>
 
             {/* Actions */}
-            <div className="px-4 py-3 border-t border-slate-100 flex gap-2">
+            <div className="px-4 py-3 border-t border-slate-100 flex gap-2 shrink-0">
                 {type === "legend" && (
                     <ActionButton
                         label="Dupliquer"
