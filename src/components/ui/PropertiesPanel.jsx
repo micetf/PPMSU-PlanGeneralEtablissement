@@ -1,12 +1,10 @@
 /**
  * @fileoverview Panneau de propriétés de l'élément sélectionné
  */
-import { useState } from "react";
 import PropTypes from "prop-types";
 import { useApp } from "../../hooks/useApp";
 import { useSelectedItem } from "../../hooks/useSelectedItem";
-import { ELEMENT_TYPES } from "../../constants/ppmsLegend";
-import { NumberField, TextField, SliderField } from "./PropertiesField";
+import { NumberField, SliderField } from "./PropertiesField";
 
 /**
  * Bouton d'action
@@ -33,78 +31,34 @@ ActionButton.propTypes = {
 };
 
 /**
- * Contrôle taille avec ratio verrouillé
+ * Contrôle taille — ratio toujours verrouillé
  * @param {{ item:object, onChange:Function }} props
  */
 function SizeControl({ item, onChange }) {
-    const [locked, setLocked] = useState(true);
     const ratio = item.height > 0 ? item.width / item.height : 1;
 
-    const handleWidth = (w) => {
-        onChange({
-            width: w,
-            height: locked ? Math.round(w / ratio) : item.height,
-        });
-    };
-
-    const handleHeight = (h) => {
-        onChange({
-            height: h,
-            width: locked ? Math.round(h * ratio) : item.width,
-        });
-    };
-
     return (
-        <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between">
-                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">
-                    Taille
-                </span>
-                {/* Bouton verrou ratio */}
-                <button
-                    type="button"
-                    onClick={() => setLocked((v) => !v)}
-                    title={
-                        locked
-                            ? "Ratio verrouillé — cliquer pour déverrouiller"
-                            : "Ratio libre — cliquer pour verrouiller"
-                    }
-                    className={[
-                        "text-[10px] px-1.5 py-0.5 rounded transition-colors",
-                        "focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400",
-                        locked
-                            ? "text-blue-500 bg-blue-50 hover:bg-blue-100"
-                            : "text-slate-400 bg-slate-100 hover:bg-slate-200",
-                    ].join(" ")}
-                    aria-pressed={locked}
-                    aria-label={
-                        locked
-                            ? "Déverrouiller le ratio"
-                            : "Verrouiller le ratio"
-                    }
-                >
-                    {locked ? "🔒" : "🔓"}
-                </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-                <NumberField
-                    label="L"
-                    value={item.width}
-                    min={16}
-                    max={800}
-                    onChange={handleWidth}
-                    unit="px"
-                />
-                <NumberField
-                    label="H"
-                    value={item.height}
-                    min={16}
-                    max={800}
-                    onChange={handleHeight}
-                    unit="px"
-                />
-            </div>
+        <div className="grid grid-cols-2 gap-2">
+            <NumberField
+                label="Largeur"
+                value={item.width}
+                min={16}
+                max={800}
+                onChange={(w) =>
+                    onChange({ width: w, height: Math.round(w / ratio) })
+                }
+                unit="px"
+            />
+            <NumberField
+                label="Hauteur"
+                value={item.height}
+                min={16}
+                max={800}
+                onChange={(h) =>
+                    onChange({ height: h, width: Math.round(h * ratio) })
+                }
+                unit="px"
+            />
         </div>
     );
 }
@@ -115,7 +69,7 @@ SizeControl.propTypes = {
 };
 
 /**
- * Contrôle rotation — slider + champ numérique
+ * Contrôle rotation — slider + boutons rapides
  * @param {{ value:number, onChange:Function }} props
  */
 function RotationControl({ value, onChange }) {
@@ -129,8 +83,6 @@ function RotationControl({ value, onChange }) {
                     {Math.round(value)}°
                 </span>
             </div>
-
-            {/* Slider 0–360 */}
             <input
                 type="range"
                 value={value}
@@ -141,8 +93,6 @@ function RotationControl({ value, onChange }) {
                 className="w-full accent-blue-500"
                 aria-label="Rotation en degrés"
             />
-
-            {/* Boutons de rotation rapide */}
             <div className="grid grid-cols-4 gap-1 mt-0.5">
                 {[0, 90, 180, 270].map((deg) => (
                     <button
@@ -173,21 +123,13 @@ RotationControl.propTypes = {
 /**
  * Propriétés d'un élément de légende
  */
-function LegendItemProperties({ item, symbol }) {
+function LegendItemProperties({ item }) {
     const { actions } = useApp();
     const update = (changes) => actions.updateLegendItem(item.id, changes);
 
     return (
         <div className="flex flex-col gap-4">
-            {/* Étiquette */}
-            <TextField
-                label="Étiquette"
-                value={item.label ?? ""}
-                placeholder={symbol?.label ?? ""}
-                onChange={(v) => update({ label: v })}
-            />
-
-            {/* Taille avec ratio verrouillé */}
+            {/* Taille — ratio verrouillé */}
             <SizeControl item={item} onChange={update} />
 
             {/* Rotation */}
@@ -205,30 +147,12 @@ function LegendItemProperties({ item, symbol }) {
                 step={0.05}
                 onChange={(v) => update({ opacity: v })}
             />
-
-            {/* Affichage étiquette */}
-            {item.type !== ELEMENT_TYPES.TEXTE && (
-                <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                        type="checkbox"
-                        checked={item.labelVisible}
-                        onChange={(e) =>
-                            update({ labelVisible: e.target.checked })
-                        }
-                        className="rounded accent-blue-500"
-                    />
-                    <span className="text-xs text-slate-600">
-                        Afficher l'étiquette
-                    </span>
-                </label>
-            )}
         </div>
     );
 }
 
 LegendItemProperties.propTypes = {
     item: PropTypes.object.isRequired,
-    symbol: PropTypes.object,
 };
 
 LegendItemProperties.defaultProps = { symbol: null };
