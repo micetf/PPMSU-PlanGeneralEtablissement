@@ -72,27 +72,9 @@ export function LegendToolbar({ className }) {
         const symbol = getSymbolByKey(key);
         if (!symbol) return;
 
-        // Annule ou finalise tout tracé en cours avant de changer de symbole
-        const { activeDrawingPathId } = state.ui;
-        if (activeDrawingPathId) {
-            const activePath = state.contourPaths.find(
-                (p) => p.id === activeDrawingPathId
-            );
-            if (activePath) {
-                if (activePath.points.length >= 3) {
-                    // Assez de points → fermer proprement
-                    actions.closeContourPath(activeDrawingPathId);
-                } else {
-                    // Trop peu de points → supprimer
-                    actions.removeContourPath(activeDrawingPathId);
-                }
-            }
-        }
-
-        if (
-            symbol.type === ELEMENT_TYPES.CONTOUR ||
-            symbol.type === ELEMENT_TYPES.ZONE
-        ) {
+        if (symbol.type === ELEMENT_TYPES.CONTOUR) {
+            // Seul CONTOUR déclenche l'outil de tracé
+            // ZMS est désormais SYMBOL → outil place
             actions.selectSymbol(key);
             actions.setTool("draw");
         } else {

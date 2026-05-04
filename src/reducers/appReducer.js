@@ -20,12 +20,12 @@ export const ACTION_TYPES = {
     UPDATE_CONTOUR_PATH: "UPDATE_CONTOUR_PATH",
     CLOSE_CONTOUR_PATH: "CLOSE_CONTOUR_PATH",
     REMOVE_CONTOUR_PATH: "REMOVE_CONTOUR_PATH",
+    UPDATE_CONTOUR_POINT: "UPDATE_CONTOUR_POINT",
     SET_SELECTED_TOOL: "SET_SELECTED_TOOL",
     SET_SELECTED_SYMBOL: "SET_SELECTED_SYMBOL",
     SET_SELECTED_ITEM: "SET_SELECTED_ITEM",
     SET_ZOOM: "SET_ZOOM",
     SET_PAN: "SET_PAN",
-    UPDATE_CONTOUR_POINT: "UPDATE_CONTOUR_POINT",
 };
 
 /**
@@ -64,6 +64,29 @@ export const initialState = {
         isDirty: false,
     },
 };
+
+/**
+ * Nettoie un tracé actif non fermé :
+ * ferme proprement s'il a ≥ 3 points, supprime sinon.
+ * @param {Array} contourPaths
+ * @param {string|null} activeDrawingPathId
+ * @returns {Array}
+ */
+function cleanActiveDrawing(contourPaths, activeDrawingPathId) {
+    if (!activeDrawingPathId) return contourPaths;
+
+    const activePath = contourPaths.find((p) => p.id === activeDrawingPathId);
+    if (!activePath || activePath.closed) return contourPaths;
+
+    if (activePath.points.length >= 3) {
+        return contourPaths.map((p) =>
+            p.id === activeDrawingPathId
+                ? { ...p, closed: true, isDrawing: false }
+                : p
+        );
+    }
+    return contourPaths.filter((p) => p.id !== activeDrawingPathId);
+}
 
 /**
  * Reducer pur — aucun effet de bord
@@ -199,6 +222,7 @@ export function appReducer(state, action) {
                 },
             };
         }
+
         case ACTION_TYPES.ADD_CONTOUR_POINT:
             return {
                 ...state,
@@ -238,27 +262,61 @@ export function appReducer(state, action) {
                 ui: { ...state.ui, isDirty: true },
             };
 
-        // ── UI ───────────────────────────────────────────────────────────────────
-        case ACTION_TYPES.SET_SELECTED_TOOL:
+        case ACTION_TYPES.UPDATE_CONTOUR_POINT:
             return {
                 ...state,
+                contourPaths: state.contourPaths.map((p) =>
+                    p.id === payload.pathId
+                        ? {
+                              ...p,
+                              points: p.points.map((pt, i) =>
+                                  i === payload.index ? payload.point : pt
+                              ),
+                          }
+                        : p
+                ),
+                ui: { ...state.ui, isDirty: true },
+            };
+
+        // ── UI ───────────────────────────────────────────────────────────────────
+        case ACTION_TYPES.SET_SELECTED_TOOL: {
+            const cleaned = cleanActiveDrawing(
+                state.contourPaths,
+                state.ui.activeDrawingPathId
+            );
+            return {
+                ...state,
+                contourPaths: cleaned,
                 ui: {
                     ...state.ui,
                     selectedTool: payload,
                     selectedItemId: null,
                     activeDrawingPathId: null,
+                    // Réinitialise la sélection de symbole quand on revient à select
+                    selectedSymbolKey:
+                        payload === "select"
+                            ? null
+                            : state.ui.selectedSymbolKey,
                 },
             };
+        }
 
-        case ACTION_TYPES.SET_SELECTED_SYMBOL:
+        case ACTION_TYPES.SET_SELECTED_SYMBOL: {
+            const cleaned = cleanActiveDrawing(
+                state.contourPaths,
+                state.ui.activeDrawingPathId
+            );
             return {
                 ...state,
+                contourPaths: cleaned,
                 ui: {
                     ...state.ui,
                     selectedSymbolKey: payload,
                     selectedTool: "place",
+                    activeDrawingPathId: null,
                 },
             };
+        }
 
         case ACTION_TYPES.SET_SELECTED_ITEM:
             return {
@@ -276,22 +334,6 @@ export function appReducer(state, action) {
             return {
                 ...state,
                 ui: { ...state.ui, panOffset: payload },
-            };
-
-        case ACTION_TYPES.UPDATE_CONTOUR_POINT:
-            return {
-                ...state,
-                contourPaths: state.contourPaths.map((p) =>
-                    p.id === payload.pathId
-                        ? {
-                              ...p,
-                              points: p.points.map((pt, i) =>
-                                  i === payload.index ? payload.point : pt
-                              ),
-                          }
-                        : p
-                ),
-                ui: { ...state.ui, isDirty: true },
             };
 
         default:
