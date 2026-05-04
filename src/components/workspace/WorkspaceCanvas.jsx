@@ -77,9 +77,10 @@ export function WorkspaceCanvas({
     const containerRef = useRef(null);
     const { handleWheel, handleMouseDown, handleMouseMove, handleMouseUp } =
         useZoomPan();
+    const { zoom, panOffset } = state.ui;
 
     const { src, naturalWidth, naturalHeight } = state.image;
-    const { zoom, panOffset } = state.ui;
+    const projectId = state.project.id;
 
     useEffect(() => {
         if (!src || !containerRef.current) return;
@@ -92,7 +93,7 @@ export function WorkspaceCanvas({
             x: (clientWidth - naturalWidth * initZoom) / 2,
             y: (clientHeight - naturalHeight * initZoom) / 2,
         });
-    }, [src]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [src, projectId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         const el = containerRef.current;
