@@ -145,11 +145,18 @@ function LegendItem({ item, imageWidth, imageHeight }) {
     const symbol = getSymbolByKey(item.symbolKey);
     const isSelected = state.ui.selectedItemId === item.id;
 
+    // ── CORRECTION : tailles scalées selon le zoom d'affichage ──────────────
+    // item.width / item.height = taille en pixels natifs (utilisée à l'export)
+    // scaledWidth / scaledHeight = taille affichée à l'écran, proportionnelle au zoom
+    const { zoom } = state.ui;
+    const scaledWidth = item.width * zoom;
+    const scaledHeight = item.height * zoom;
+    // ────────────────────────────────────────────────────────────────────────
+
     const dragOrigin = useRef({ x: item.x, y: item.y });
 
     const { onDragStart } = useDrag({
         onMove: (dx, dy) => {
-            const { zoom } = state.ui;
             const { naturalWidth, naturalHeight } = state.image;
             actions.updateLegendItem(item.id, {
                 x: Math.max(
@@ -184,8 +191,8 @@ function LegendItem({ item, imageWidth, imageHeight }) {
         if (symbol?.shape === "pentagon") {
             return (
                 <PentagonSymbol
-                    width={item.width}
-                    height={item.height}
+                    width={scaledWidth} // ← était item.width
+                    height={scaledHeight} // ← était item.height
                     color={symbol.color}
                     fillColor={symbol.fillColor}
                     fillOpacity={symbol.fillOpacity}
@@ -196,11 +203,10 @@ function LegendItem({ item, imageWidth, imageHeight }) {
         }
         if (item.type === "texte") {
             return (
-                // ✅ fontSize piloté par item.width (modifiable via panneau propriétés)
                 <span
                     className="font-bold select-none whitespace-nowrap"
                     style={{
-                        fontSize: item.width,
+                        fontSize: scaledWidth, // ← était item.width
                         color: symbol?.color ?? "#FFFF00",
                         textShadow: "1px 1px 2px #000, -1px -1px 2px #000",
                     }}
@@ -214,8 +220,8 @@ function LegendItem({ item, imageWidth, imageHeight }) {
                 <SymbolImageFallback
                     src={symbolUrl(symbol.imageFile)}
                     alt={symbol.label}
-                    width={item.width}
-                    height={item.height}
+                    width={scaledWidth} // ← était item.width
+                    height={scaledHeight} // ← était item.height
                 />
             );
         }
