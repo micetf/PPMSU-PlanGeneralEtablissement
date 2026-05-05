@@ -35,8 +35,9 @@ ActionButton.propTypes = {
 };
 
 /**
- * Contrôle de taille — ratio toujours verrouillé.
- * Pour un élément texte, item.width est interprété comme une taille de police.
+ * Contrôle de taille.
+ * - Texte (annotation) : item.width = taille de police, champ numérique 10–96 px.
+ * - Symbole / pentagone : item.width = dimension, slider 30–100 px, ratio verrouillé.
  *
  * @param {{ item:object, isTexte:boolean, onChange:Function }} props
  */
@@ -58,28 +59,17 @@ function SizeControl({ item, isTexte, onChange }) {
     }
 
     return (
-        <div className="grid grid-cols-2 gap-2">
-            <NumberField
-                label="Largeur"
-                value={item.width}
-                min={16}
-                max={800}
-                onChange={(w) =>
-                    onChange({ width: w, height: Math.round(w / ratio) })
-                }
-                unit="px"
-            />
-            <NumberField
-                label="Hauteur"
-                value={item.height}
-                min={16}
-                max={800}
-                onChange={(h) =>
-                    onChange({ height: h, width: Math.round(h * ratio) })
-                }
-                unit="px"
-            />
-        </div>
+        <SliderField
+            label="Taille"
+            value={item.width}
+            min={30}
+            max={100}
+            step={1}
+            unit=" px"
+            onChange={(w) =>
+                onChange({ width: w, height: Math.round(w / ratio) })
+            }
+        />
     );
 }
 
@@ -161,7 +151,7 @@ function LegendItemProperties({ item }) {
 
     return (
         <div className="flex flex-col gap-4">
-            {/* Texte de l'annotation — uniquement pour les éléments de type texte */}
+            {/* Texte libre — annotation uniquement */}
             {isTexte && (
                 <TextField
                     label="Texte affiché"
@@ -171,7 +161,7 @@ function LegendItemProperties({ item }) {
                 />
             )}
 
-            {/* Identifiant de zone — uniquement pour les zones ZMS (pentagone) */}
+            {/* Identifiant — zone ZMS (pentagone) uniquement */}
             {isPentagon && (
                 <TextField
                     label="Identifiant de zone"

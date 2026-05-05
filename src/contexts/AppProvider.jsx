@@ -4,7 +4,7 @@
 import { useReducer, useCallback } from "react";
 import { AppContext } from "./appContext";
 import { appReducer, initialState, ACTION_TYPES } from "../reducers/appReducer";
-import { getSymbolByKey } from "../constants/ppmsLegend";
+import { getSymbolByKey, ELEMENT_TYPES } from "../constants/ppmsLegend";
 import { storeImage, retrieveImage, removeImage } from "../utils/imageStore";
 import { importProject as parseImportFile } from "../utils/projectIO";
 
@@ -48,8 +48,16 @@ export function AppProvider({ children }) {
         const symbol = getSymbolByKey(symbolKey);
         if (!symbol) return;
 
-        // Taille par défaut selon la nature du symbole
-        const defaultSize = symbol.shape === "pentagon" ? 80 : 48;
+        // Taille par défaut selon la nature du symbole :
+        // - pentagone (ZMS) : 80px
+        // - annotation (texte) : 14px (taille de police)
+        // - symbole image : 48px
+        const defaultSize =
+            symbol.shape === "pentagon"
+                ? 80
+                : symbol.type === ELEMENT_TYPES.TEXTE
+                  ? 14
+                  : 48;
 
         dispatch({
             type: ACTION_TYPES.ADD_LEGEND_ITEM,
@@ -89,7 +97,7 @@ export function AppProvider({ children }) {
 
     // ── CONTOURS ───────────────────────────────────────────────────────────────
 
-    /** @param {string} symbolKey */
+    /** @param {string} symbolKey @param {{ x:number, y:number }} firstPoint */
     const startContourPath = useCallback((symbolKey, firstPoint) => {
         const symbol = getSymbolByKey(symbolKey);
         if (!symbol) return;
@@ -107,21 +115,18 @@ export function AppProvider({ children }) {
         });
     }, []);
 
-    /** @param {string} pathId @param {{x:number, y:number}} point */
-    const addContourPoint = useCallback((pathId, point) => {
+    /** @param {string} id @param {{ x:number, y:number }} point */
+    const addContourPoint = useCallback((id, point) => {
         dispatch({
             type: ACTION_TYPES.ADD_CONTOUR_POINT,
-            payload: { id: pathId, point },
+            payload: { id, point },
         });
     }, []);
 
-    /** @param {string} pathId */
+    /** @param {string} id */
     const closeContourPath = useCallback(
-        (pathId) =>
-            dispatch({
-                type: ACTION_TYPES.CLOSE_CONTOUR_PATH,
-                payload: pathId,
-            }),
+        (id) =>
+            dispatch({ type: ACTION_TYPES.CLOSE_CONTOUR_PATH, payload: id }),
         []
     );
 
@@ -140,30 +145,26 @@ export function AppProvider({ children }) {
         []
     );
 
-    /** @param {string} pathId @param {number} index @param {{x:number,y:number}} point */
-    const updateContourPoint = useCallback((pathId, index, point) => {
+    /** @param {string} id @param {number} index @param {{ x:number, y:number }} point */
+    const updateContourPoint = useCallback((id, index, point) => {
         dispatch({
             type: ACTION_TYPES.UPDATE_CONTOUR_POINT,
-            payload: { pathId, index, point },
+            payload: { id, index, point },
         });
     }, []);
 
     // ── UI ─────────────────────────────────────────────────────────────────────
 
-    /** @param {'select'|'place'|'draw'|'text'} tool */
+    /** @param {string} tool */
     const setTool = useCallback(
-        (tool) =>
-            dispatch({ type: ACTION_TYPES.SET_SELECTED_TOOL, payload: tool }),
+        (tool) => dispatch({ type: ACTION_TYPES.SET_TOOL, payload: tool }),
         []
     );
 
-    /** @param {string} symbolKey */
+    /** @param {string} key */
     const selectSymbol = useCallback(
-        (symbolKey) =>
-            dispatch({
-                type: ACTION_TYPES.SET_SELECTED_SYMBOL,
-                payload: symbolKey,
-            }),
+        (key) =>
+            dispatch({ type: ACTION_TYPES.SET_SELECTED_SYMBOL, payload: key }),
         []
     );
 
@@ -179,7 +180,7 @@ export function AppProvider({ children }) {
         []
     );
 
-    /** @param {{ x: number, y: number }} offset */
+    /** @param {{ x:number, y:number }} offset */
     const setPan = useCallback(
         (offset) => dispatch({ type: ACTION_TYPES.SET_PAN, payload: offset }),
         []
@@ -187,13 +188,9 @@ export function AppProvider({ children }) {
 
     // ── PERSISTANCE ────────────────────────────────────────────────────────────
 
-    /**
-     * Sauvegarde le projet : état en localStorage, image en IndexedDB
-     * @returns {Promise<{ success: boolean, error?: string }>}
-     */
+    /** @returns {Promise<{ success:boolean, error?:string }>} */
     const saveProject = useCallback(async () => {
         try {
-            // Sépare l'image du reste — IndexedDB n'a pas de limite de quota
             const { image, ...stateWithoutImage } = state;
             const snapshot = {
                 ...stateWithoutImage,
@@ -201,16 +198,13 @@ export function AppProvider({ children }) {
                 savedAt: new Date().toISOString(),
             };
 
-            // Métadonnées en localStorage (légères)
             localStorage.setItem(
                 `ppms_project_${state.project.id}`,
                 JSON.stringify(snapshot)
             );
 
-            // Image en IndexedDB (peut dépasser 5 Mo)
             await storeImage(state.project.id, image);
 
-            // Mise à jour de l'index
             const index = JSON.parse(
                 localStorage.getItem("ppms_projects") ?? "[]"
             );
@@ -232,9 +226,8 @@ export function AppProvider({ children }) {
     }, [state]);
 
     /**
-     * Charge un projet depuis localStorage + IndexedDB
      * @param {string} projectId
-     * @returns {Promise<{ success: boolean, error?: string }>}
+     * @returns {Promise<{ success:boolean, error?:string }>}
      */
     const loadProject = useCallback(async (projectId) => {
         try {
@@ -247,10 +240,7 @@ export function AppProvider({ children }) {
 
             const snapshot = JSON.parse(raw);
 
-            // Récupère l'image depuis IndexedDB (nouveau format)
             let image = await retrieveImage(projectId);
-
-            // Rétrocompatibilité : image dans le snapshot (ancien format localStorage)
             if (!image && snapshot.image?.src) image = snapshot.image;
 
             if (!image) {
@@ -260,7 +250,6 @@ export function AppProvider({ children }) {
                 };
             }
 
-            // Reconstruit l'état complet sans les champs techniques de snapshot
             const projectState = { ...snapshot };
             delete projectState.version;
             delete projectState.savedAt;
@@ -277,10 +266,8 @@ export function AppProvider({ children }) {
     }, []);
 
     /**
-     * Importe un projet depuis un fichier .ppmsu
-     * Sauvegarde automatiquement l'image en IndexedDB
      * @param {File} file
-     * @returns {Promise<{ success: boolean, error?: string }>}
+     * @returns {Promise<{ success:boolean, error?:string }>}
      */
     const importProject = useCallback(async (file) => {
         const result = await parseImportFile(file);
@@ -288,7 +275,6 @@ export function AppProvider({ children }) {
 
         const { data } = result;
 
-        // Génère un nouvel ID pour éviter les collisions avec des projets locaux
         const newId = crypto.randomUUID();
         const projectState = {
             project: { ...data.project, id: newId },
@@ -297,7 +283,6 @@ export function AppProvider({ children }) {
             contourPaths: data.contourPaths,
         };
 
-        // Stocke l'image en IndexedDB
         try {
             await storeImage(newId, data.image);
         } catch (err) {
@@ -311,11 +296,7 @@ export function AppProvider({ children }) {
         return { success: true };
     }, []);
 
-    /**
-     * Supprime un projet de localStorage et son image d'IndexedDB
-     * @param {string} projectId
-     * @returns {Promise<void>}
-     */
+    /** @param {string} projectId @returns {Promise<void>} */
     const deleteProject = useCallback(async (projectId) => {
         localStorage.removeItem(`ppms_project_${projectId}`);
         const index = JSON.parse(localStorage.getItem("ppms_projects") ?? "[]");
@@ -342,6 +323,8 @@ export function AppProvider({ children }) {
         dispatch({ type: ACTION_TYPES.SET_PROJECT_INFO, payload: info });
     }, []);
 
+    // ── Exposition ─────────────────────────────────────────────────────────────
+
     const actions = {
         loadImage,
         addLegendItem,
@@ -353,6 +336,7 @@ export function AppProvider({ children }) {
         closeContourPath,
         updateContourPath,
         removeContourPath,
+        updateContourPoint,
         setTool,
         selectSymbol,
         selectItem,
@@ -364,7 +348,6 @@ export function AppProvider({ children }) {
         deleteProject,
         resetProject,
         setProjectInfo,
-        updateContourPoint,
         importProject,
     };
 
