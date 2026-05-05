@@ -139,7 +139,7 @@ function drawLegendItems(ctx, legendItems, w, h, imageCache) {
             const size = item.width;
             const r = size / 2 - 2;
             ctx.strokeStyle = symbol.color;
-            ctx.lineWidth = 2;
+            ctx.lineWidth = symbol.strokeWidth ?? 2;
             ctx.fillStyle = symbol.fillColor;
             ctx.globalAlpha = symbol.fillOpacity;
             ctx.beginPath();

@@ -31,6 +31,7 @@ function PentagonSymbol({
     fillColor,
     fillOpacity,
     label,
+    strokeWidth,
 }) {
     const cx = width / 2;
     const cy = height / 2;
@@ -58,7 +59,7 @@ function PentagonSymbol({
                 fill={fillColor}
                 fillOpacity={fillOpacity}
                 stroke={color}
-                strokeWidth="2"
+                strokeWidth={strokeWidth}
                 strokeLinejoin="round"
             />
             {/* Label centré dans le pentagone */}
@@ -90,9 +91,10 @@ PentagonSymbol.propTypes = {
     fillColor: PropTypes.string.isRequired,
     fillOpacity: PropTypes.number.isRequired,
     label: PropTypes.string,
+    strokeWidth: PropTypes.number,
 };
 
-PentagonSymbol.defaultProps = { label: "" };
+PentagonSymbol.defaultProps = { label: "", strokeWidth: 2 };
 
 /**
  * Image de symbole avec fallback si fichier manquant
@@ -188,6 +190,7 @@ function LegendItem({ item, imageWidth, imageHeight }) {
                     fillColor={symbol.fillColor}
                     fillOpacity={symbol.fillOpacity}
                     label={item.label}
+                    strokeWidth={symbol.strokeWidth ?? 2}
                 />
             );
         }

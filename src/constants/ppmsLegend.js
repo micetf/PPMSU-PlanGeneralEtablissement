@@ -141,7 +141,7 @@ export const PPMS_SYMBOLS = [
         type: ELEMENT_TYPES.SYMBOL, // ← était ELEMENT_TYPES.ZONE
         shape: "pentagon",
         color: "#43729D",
-        strokeWidth: 2,
+        strokeWidth: 4,
         strokeStyle: "solid",
         fillColor: "#43729D",
         fillOpacity: 0.25,
