@@ -157,7 +157,8 @@ export function AppProvider({ children }) {
 
     /** @param {string} tool */
     const setTool = useCallback(
-        (tool) => dispatch({ type: ACTION_TYPES.SET_TOOL, payload: tool }),
+        (tool) =>
+            dispatch({ type: ACTION_TYPES.SET_SELECTED_TOOL, payload: tool }),
         []
     );
 
