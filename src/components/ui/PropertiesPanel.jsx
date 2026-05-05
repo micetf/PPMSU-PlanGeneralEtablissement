@@ -4,7 +4,8 @@
 import PropTypes from "prop-types";
 import { useApp } from "../../hooks/useApp";
 import { useSelectedItem } from "../../hooks/useSelectedItem";
-import { NumberField, SliderField } from "./PropertiesField";
+import { NumberField, TextField, SliderField } from "./PropertiesField";
+import { getSymbolByKey } from '../../constants/ppmsLegend'
 
 /**
  * Bouton d'action
@@ -126,19 +127,25 @@ RotationControl.propTypes = {
 function LegendItemProperties({ item }) {
     const { actions } = useApp();
     const update = (changes) => actions.updateLegendItem(item.id, changes);
+    const symbol = getSymbolByKey(item.symbolKey); // ← ajouter
 
     return (
         <div className="flex flex-col gap-4">
-            {/* Taille — ratio verrouillé */}
-            <SizeControl item={item} onChange={update} />
+            {/* Identifiant — uniquement pour les zones ZMS */}
+            {symbol?.shape === "pentagon" && (
+                <TextField
+                    label="Identifiant de zone"
+                    value={item.label ?? ""}
+                    placeholder="ex : Salle 12 — 28 élèves"
+                    onChange={(v) => update({ label: v })}
+                />
+            )}
 
-            {/* Rotation */}
+            <SizeControl item={item} onChange={update} />
             <RotationControl
                 value={item.rotation}
                 onChange={(v) => update({ rotation: v })}
             />
-
-            {/* Opacité */}
             <SliderField
                 label="Opacité"
                 value={item.opacity}

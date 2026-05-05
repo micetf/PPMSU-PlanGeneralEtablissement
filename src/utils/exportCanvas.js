@@ -134,6 +134,39 @@ function drawLegendItems(ctx, legendItems, w, h, imageCache) {
         if (item.type === "compose" && symbol.shape === "north_arrow") {
             drawNorthArrow(ctx, 0, 0, item.width);
         }
+        // Pentagon
+        else if (symbol.shape === "pentagon") {
+            const size = item.width;
+            const r = size / 2 - 2;
+            ctx.strokeStyle = symbol.color;
+            ctx.lineWidth = 2;
+            ctx.fillStyle = symbol.fillColor;
+            ctx.globalAlpha = symbol.fillOpacity;
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+                const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+                const px = r * Math.cos(angle);
+                const py = r * Math.sin(angle);
+                i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.stroke();
+
+            // Label centré
+            if (item.label) {
+                const fontSize = Math.max(10, Math.round(item.width / 8));
+                ctx.font = `bold ${fontSize}px sans-serif`;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.strokeStyle = "white";
+                ctx.lineWidth = 3;
+                ctx.strokeText(item.label, 0, 0);
+                ctx.fillStyle = symbol.color;
+                ctx.fillText(item.label, 0, 0);
+            }
+        }
         // Texte annotation
         else if (item.type === "texte") {
             const text = item.label || symbol.label;

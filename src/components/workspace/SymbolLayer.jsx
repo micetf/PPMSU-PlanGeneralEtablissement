@@ -1,16 +1,101 @@
 /**
  * @fileoverview Couche de rendu des éléments de légende avec déplacement par drag
  */
-import PropTypes from "prop-types";
 import { useRef, useState } from "react";
+import PropTypes from "prop-types";
 import { getSymbolByKey } from "../../constants/ppmsLegend";
 import { useApp } from "../../hooks/useApp";
 import { useDrag } from "../../hooks/useDrag";
 import { symbolUrl } from "../../utils/assetPath";
 
+function NorthArrow() {
+    return (
+        <svg viewBox="0 0 40 40" width="40" height="40" aria-label="Nord">
+            <circle cx="20" cy="20" r="18" fill="rgba(127,127,127,0.7)" />
+            <polygon points="20,4 24,20 16,20" fill="#FF0000" />
+            <polygon points="20,36 24,20 16,20" fill="white" />
+        </svg>
+    );
+}
+
+/**
+ * Pentagone SVG — Zone de mise en sûreté
+ * Affiche un label centré si renseigné
+ * @param {{ width:number, height:number, color:string,
+ *           fillColor:string, fillOpacity:number, label:string }} props
+ */
+function PentagonSymbol({
+    width,
+    height,
+    color,
+    fillColor,
+    fillOpacity,
+    label,
+}) {
+    const cx = width / 2;
+    const cy = height / 2;
+    const rx = width / 2 - 2;
+    const ry = height / 2 - 2;
+
+    const points = Array.from({ length: 5 }, (_, i) => {
+        const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+        return `${cx + rx * Math.cos(angle)},${cy + ry * Math.sin(angle)}`;
+    }).join(" ");
+
+    // Taille de police proportionnelle à la taille du symbole
+    const fontSize = Math.max(10, Math.round(width / 8));
+
+    return (
+        <svg
+            width={width}
+            height={height}
+            viewBox={`0 0 ${width} ${height}`}
+            aria-label="Zone de mise en sûreté"
+            overflow="visible"
+        >
+            <polygon
+                points={points}
+                fill={fillColor}
+                fillOpacity={fillOpacity}
+                stroke={color}
+                strokeWidth="2"
+                strokeLinejoin="round"
+            />
+            {/* Label centré dans le pentagone */}
+            {label && (
+                <text
+                    x={cx}
+                    y={cy}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fontSize={fontSize}
+                    fontWeight="bold"
+                    fill={color}
+                    stroke="white"
+                    strokeWidth="3"
+                    paintOrder="stroke"
+                    style={{ userSelect: "none", pointerEvents: "none" }}
+                >
+                    {label}
+                </text>
+            )}
+        </svg>
+    );
+}
+
+PentagonSymbol.propTypes = {
+    width: PropTypes.number.isRequired,
+    height: PropTypes.number.isRequired,
+    color: PropTypes.string.isRequired,
+    fillColor: PropTypes.string.isRequired,
+    fillOpacity: PropTypes.number.isRequired,
+    label: PropTypes.string,
+};
+
+PentagonSymbol.defaultProps = { label: "" };
+
 /**
  * Image de symbole avec fallback si fichier manquant
- * @param {{ src:string, alt:string, width:number, height:number }} props
  */
 function SymbolImageFallback({ src, alt, width, height }) {
     const [error, setError] = useState(false);
@@ -51,65 +136,7 @@ SymbolImageFallback.propTypes = {
 };
 
 /**
- * Rose des vents
- */
-function NorthArrow() {
-    return (
-        <svg viewBox="0 0 40 40" width="40" height="40" aria-label="Nord">
-            <circle cx="20" cy="20" r="18" fill="rgba(127,127,127,0.7)" />
-            <polygon points="20,4 24,20 16,20" fill="#FF0000" />
-            <polygon points="20,36 24,20 16,20" fill="white" />
-        </svg>
-    );
-}
-
-/**
- * Pentagone SVG — Zone de mise en sûreté
- * @param {{ width:number, height:number, color:string,
- *           fillColor:string, fillOpacity:number }} props
- */
-function PentagonSymbol({ width, height, color, fillColor, fillOpacity }) {
-    const cx = width / 2;
-    const cy = height / 2;
-    // Rayon inscrit légèrement réduit pour laisser de la marge au trait
-    const rx = width / 2 - 2;
-    const ry = height / 2 - 2;
-
-    const points = Array.from({ length: 5 }, (_, i) => {
-        const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
-        return `${cx + rx * Math.cos(angle)},${cy + ry * Math.sin(angle)}`;
-    }).join(" ");
-
-    return (
-        <svg
-            width={width}
-            height={height}
-            viewBox={`0 0 ${width} ${height}`}
-            aria-label="Zone de mise en sûreté"
-            overflow="visible"
-        >
-            <polygon
-                points={points}
-                fill={fillColor}
-                fillOpacity={fillOpacity}
-                stroke={color}
-                strokeWidth="2"
-                strokeLinejoin="round"
-            />
-        </svg>
-    );
-}
-
-PentagonSymbol.propTypes = {
-    width: PropTypes.number.isRequired,
-    height: PropTypes.number.isRequired,
-    color: PropTypes.string.isRequired,
-    fillColor: PropTypes.string.isRequired,
-    fillOpacity: PropTypes.number.isRequired,
-};
-
-/**
- * @param {{ item: object, imageWidth: number, imageHeight: number }} props
+ * @param {{ item:object, imageWidth:number, imageHeight:number }} props
  */
 function LegendItem({ item, imageWidth, imageHeight }) {
     const { state, actions } = useApp();
@@ -149,12 +176,9 @@ function LegendItem({ item, imageWidth, imageHeight }) {
     };
 
     const renderContent = () => {
-        // Rose des vents
         if (item.type === "compose" && symbol?.shape === "north_arrow") {
             return <NorthArrow />;
         }
-
-        // Pentagone ZMS
         if (symbol?.shape === "pentagon") {
             return (
                 <PentagonSymbol
@@ -163,11 +187,10 @@ function LegendItem({ item, imageWidth, imageHeight }) {
                     color={symbol.color}
                     fillColor={symbol.fillColor}
                     fillOpacity={symbol.fillOpacity}
+                    label={item.label}
                 />
             );
         }
-
-        // Annotation texte
         if (item.type === "texte") {
             return (
                 <span
@@ -181,8 +204,6 @@ function LegendItem({ item, imageWidth, imageHeight }) {
                 </span>
             );
         }
-
-        // Pictogramme image
         if (symbol?.imageFile) {
             return (
                 <SymbolImageFallback
@@ -193,7 +214,6 @@ function LegendItem({ item, imageWidth, imageHeight }) {
                 />
             );
         }
-
         return null;
     };
 
