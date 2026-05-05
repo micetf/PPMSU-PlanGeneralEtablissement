@@ -12,7 +12,7 @@ export function HomeScreen() {
     return (
         <div
             className="flex flex-col items-center justify-center min-h-screen
-                    gap-8 p-6 bg-slate-100"
+                    pt-10 gap-8 p-6 bg-slate-100"
         >
             {/* En-tête */}
             <div className="text-center">
