@@ -5,15 +5,18 @@ import PropTypes from "prop-types";
 import { useApp } from "../../hooks/useApp";
 import { useSelectedItem } from "../../hooks/useSelectedItem";
 import { NumberField, TextField, SliderField } from "./PropertiesField";
-import { getSymbolByKey } from "../../constants/ppmsLegend";
+import { getSymbolByKey, ELEMENT_TYPES } from "../../constants/ppmsLegend";
+
+// ── Sous-composants ──────────────────────────────────────────────────────────
 
 /**
- * Bouton d'action
+ * Bouton d'action (Supprimer / Dupliquer)
+ * @param {{ label:string, onClick:Function, variant:"danger"|"secondary" }} props
  */
 function ActionButton({ label, onClick, variant }) {
     const base =
-        "flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors \
-                focus:outline-none focus-visible:ring-2";
+        "flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors " +
+        "focus:outline-none focus-visible:ring-2";
     const variants = {
         danger: `${base} bg-red-50 text-red-600 hover:bg-red-100 focus-visible:ring-red-400`,
         secondary: `${base} bg-slate-100 text-slate-600 hover:bg-slate-200 focus-visible:ring-slate-400`,
@@ -32,39 +35,64 @@ ActionButton.propTypes = {
 };
 
 /**
- * Contrôle taille — Un seul degré de liberté → un seul contrôle
- * @param {{ item:object, onChange:Function }} props
+ * Contrôle de taille — ratio toujours verrouillé.
+ * Pour un élément texte, item.width est interprété comme une taille de police.
+ *
+ * @param {{ item:object, isTexte:boolean, onChange:Function }} props
  */
-
-function SizeControl({ item, symbol, onChange }) {
-    const DEFAULT_SIZE = symbol?.defaultSize ?? 48;
+function SizeControl({ item, isTexte, onChange }) {
     const ratio = item.height > 0 ? item.width / item.height : 1;
-    // Échelle en % de la taille par défaut : 50 % → 200 %
-    const scale = Math.round((item.width / DEFAULT_SIZE) * 100);
+
+    if (isTexte) {
+        return (
+            <NumberField
+                label="Taille de police"
+                value={item.width}
+                min={10}
+                max={96}
+                step={2}
+                unit="px"
+                onChange={(w) => onChange({ width: w, height: w })}
+            />
+        );
+    }
 
     return (
-        <SliderField
-            label="Taille"
-            value={scale}
-            min={50}
-            max={150}
-            step={5}
-            unit=" %"
-            onChange={(pct) => {
-                const w = Math.round((pct / 100) * DEFAULT_SIZE);
-                onChange({ width: w, height: Math.round(w / ratio) });
-            }}
-        />
+        <div className="grid grid-cols-2 gap-2">
+            <NumberField
+                label="Largeur"
+                value={item.width}
+                min={16}
+                max={800}
+                onChange={(w) =>
+                    onChange({ width: w, height: Math.round(w / ratio) })
+                }
+                unit="px"
+            />
+            <NumberField
+                label="Hauteur"
+                value={item.height}
+                min={16}
+                max={800}
+                onChange={(h) =>
+                    onChange({ height: h, width: Math.round(h * ratio) })
+                }
+                unit="px"
+            />
+        </div>
     );
 }
 
 SizeControl.propTypes = {
     item: PropTypes.object.isRequired,
+    isTexte: PropTypes.bool,
     onChange: PropTypes.func.isRequired,
 };
 
+SizeControl.defaultProps = { isTexte: false };
+
 /**
- * Contrôle rotation — slider + boutons rapides
+ * Contrôle de rotation — slider + boutons de valeurs rapides.
  * @param {{ value:number, onChange:Function }} props
  */
 function RotationControl({ value, onChange }) {
@@ -115,18 +143,36 @@ RotationControl.propTypes = {
     onChange: PropTypes.func.isRequired,
 };
 
+// ── Panneaux par type d'élément ──────────────────────────────────────────────
+
 /**
- * Propriétés d'un élément de légende
+ * Propriétés d'un élément de légende (symbole placé).
+ * Distingue annotation (texte libre), zone ZMS (pentagone) et symbole image.
+ *
+ * @param {{ item:object }} props
  */
 function LegendItemProperties({ item }) {
     const { actions } = useApp();
+    const symbol = getSymbolByKey(item.symbolKey);
     const update = (changes) => actions.updateLegendItem(item.id, changes);
-    const symbol = getSymbolByKey(item.symbolKey); // ← ajouter
+
+    const isTexte = item.type === ELEMENT_TYPES.TEXTE;
+    const isPentagon = symbol?.shape === "pentagon";
 
     return (
         <div className="flex flex-col gap-4">
-            {/* Identifiant — uniquement pour les zones ZMS */}
-            {symbol?.shape === "pentagon" && (
+            {/* Texte de l'annotation — uniquement pour les éléments de type texte */}
+            {isTexte && (
+                <TextField
+                    label="Texte affiché"
+                    value={item.label ?? ""}
+                    placeholder="Saisir une annotation…"
+                    onChange={(v) => update({ label: v })}
+                />
+            )}
+
+            {/* Identifiant de zone — uniquement pour les zones ZMS (pentagone) */}
+            {isPentagon && (
                 <TextField
                     label="Identifiant de zone"
                     value={item.label ?? ""}
@@ -135,11 +181,13 @@ function LegendItemProperties({ item }) {
                 />
             )}
 
-            <SizeControl item={item} onChange={update} />
+            <SizeControl item={item} isTexte={isTexte} onChange={update} />
+
             <RotationControl
                 value={item.rotation}
                 onChange={(v) => update({ rotation: v })}
             />
+
             <SliderField
                 label="Opacité"
                 value={item.opacity}
@@ -156,10 +204,9 @@ LegendItemProperties.propTypes = {
     item: PropTypes.object.isRequired,
 };
 
-LegendItemProperties.defaultProps = { symbol: null };
-
 /**
- * Propriétés d'un tracé de contour
+ * Propriétés d'un tracé de contour.
+ * @param {{ item:object }} props
  */
 function ContourProperties({ item }) {
     const { actions } = useApp();
@@ -193,8 +240,10 @@ function ContourProperties({ item }) {
 
 ContourProperties.propTypes = { item: PropTypes.object.isRequired };
 
+// ── Panneau principal ────────────────────────────────────────────────────────
+
 /**
- * Panneau principal
+ * Panneau de propriétés flottant — affiché quand un élément est sélectionné.
  */
 export function PropertiesPanel() {
     const { actions } = useApp();
@@ -215,13 +264,13 @@ export function PropertiesPanel() {
     return (
         <aside
             className="absolute top-4 right-4 z-20 w-56 bg-white rounded-2xl shadow-xl
-                 border border-slate-200 flex flex-col overflow-hidden"
+                       border border-slate-200 flex flex-col overflow-hidden"
             aria-label="Propriétés de l'élément"
         >
             {/* En-tête */}
             <div
                 className="flex items-center justify-between px-4 py-3
-                      border-b border-slate-100 shrink-0"
+                           border-b border-slate-100 shrink-0"
             >
                 <div className="min-w-0">
                     <p className="text-xs font-semibold text-slate-700 truncate">
@@ -236,8 +285,8 @@ export function PropertiesPanel() {
                     onClick={() => actions.selectItem(null)}
                     aria-label="Fermer le panneau"
                     className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full
-                     text-slate-400 hover:bg-slate-100 hover:text-slate-600
-                     focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                               text-slate-400 hover:bg-slate-100 hover:text-slate-600
+                               focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                 >
                     ✕
                 </button>
@@ -245,9 +294,7 @@ export function PropertiesPanel() {
 
             {/* Corps */}
             <div className="px-4 py-3 flex flex-col gap-3 overflow-y-auto max-h-[70vh]">
-                {type === "legend" && (
-                    <LegendItemProperties item={item} symbol={symbol} />
-                )}
+                {type === "legend" && <LegendItemProperties item={item} />}
                 {type === "contour" && <ContourProperties item={item} />}
             </div>
 

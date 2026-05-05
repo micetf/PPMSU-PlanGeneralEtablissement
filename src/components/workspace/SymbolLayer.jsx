@@ -19,10 +19,12 @@ function NorthArrow() {
 }
 
 /**
- * Pentagone SVG — Zone de mise en sûreté
- * Affiche un label centré si renseigné
+ * Pentagone SVG — Zone de mise en sûreté.
+ * Affiche un label centré si renseigné.
+ *
  * @param {{ width:number, height:number, color:string,
- *           fillColor:string, fillOpacity:number, label:string }} props
+ *           fillColor:string, fillOpacity:number,
+ *           label:string, strokeWidth:number }} props
  */
 function PentagonSymbol({
     width,
@@ -43,7 +45,6 @@ function PentagonSymbol({
         return `${cx + rx * Math.cos(angle)},${cy + ry * Math.sin(angle)}`;
     }).join(" ");
 
-    // Taille de police proportionnelle à la taille du symbole
     const fontSize = Math.max(10, Math.round(width / 8));
 
     return (
@@ -62,7 +63,6 @@ function PentagonSymbol({
                 strokeWidth={strokeWidth}
                 strokeLinejoin="round"
             />
-            {/* Label centré dans le pentagone */}
             {label && (
                 <text
                     x={cx}
@@ -97,7 +97,7 @@ PentagonSymbol.propTypes = {
 PentagonSymbol.defaultProps = { label: "", strokeWidth: 2 };
 
 /**
- * Image de symbole avec fallback si fichier manquant
+ * Image de symbole avec fallback si fichier manquant.
  */
 function SymbolImageFallback({ src, alt, width, height }) {
     const [error, setError] = useState(false);
@@ -108,8 +108,8 @@ function SymbolImageFallback({ src, alt, width, height }) {
                 title={`Symbole manquant : ${alt}`}
                 style={{ width, height }}
                 className="flex items-center justify-center rounded border
-                   border-dashed border-red-300 bg-red-50 text-red-400
-                   text-[10px] text-center leading-tight p-1 select-none"
+                           border-dashed border-red-300 bg-red-50 text-red-400
+                           text-[10px] text-center leading-tight p-1 select-none"
             >
                 ⚠️
             </div>
@@ -196,9 +196,11 @@ function LegendItem({ item, imageWidth, imageHeight }) {
         }
         if (item.type === "texte") {
             return (
+                // ✅ fontSize piloté par item.width (modifiable via panneau propriétés)
                 <span
-                    className="text-sm font-bold select-none whitespace-nowrap"
+                    className="font-bold select-none whitespace-nowrap"
                     style={{
+                        fontSize: item.width,
                         color: symbol?.color ?? "#FFFF00",
                         textShadow: "1px 1px 2px #000, -1px -1px 2px #000",
                     }}

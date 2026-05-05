@@ -1,5 +1,5 @@
 /**
- * @fileoverview Export du plan légendé en image PNG
+ * @fileoverview Export du plan légendé en image PNG.
  * Fusionne l'image de fond, les contours SVG et les symboles
  * sur un canvas HTML2D natif — sans dépendance externe.
  */
@@ -8,7 +8,7 @@ import { getSymbolByKey } from "../constants/ppmsLegend";
 import { symbolUrl } from "./assetPath";
 
 /**
- * Charge une image depuis une URL et retourne un HTMLImageElement
+ * Charge une image depuis une URL et retourne un HTMLImageElement.
  * @param {string} src
  * @returns {Promise<HTMLImageElement>}
  */
@@ -22,7 +22,7 @@ function loadImage(src) {
 }
 
 /**
- * Dessine la rose des vents sur le canvas
+ * Dessine la rose des vents sur le canvas.
  * @param {CanvasRenderingContext2D} ctx
  * @param {number} cx
  * @param {number} cy
@@ -30,12 +30,10 @@ function loadImage(src) {
  */
 function drawNorthArrow(ctx, cx, cy, size) {
     const r = size / 2;
-    // Cercle gris
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.fillStyle = "rgba(127,127,127,0.7)";
     ctx.fill();
-    // Flèche Nord (rouge)
     ctx.beginPath();
     ctx.moveTo(cx, cy - r * 0.8);
     ctx.lineTo(cx + r * 0.3, cy);
@@ -43,7 +41,6 @@ function drawNorthArrow(ctx, cx, cy, size) {
     ctx.closePath();
     ctx.fillStyle = "#FF0000";
     ctx.fill();
-    // Flèche Sud (blanc)
     ctx.beginPath();
     ctx.moveTo(cx, cy + r * 0.8);
     ctx.lineTo(cx + r * 0.3, cy);
@@ -54,7 +51,7 @@ function drawNorthArrow(ctx, cx, cy, size) {
 }
 
 /**
- * Dessine les contours et zones sur le canvas
+ * Dessine les contours et zones sur le canvas.
  * @param {CanvasRenderingContext2D} ctx
  * @param {object[]} contourPaths
  * @param {number} w - largeur canvas
@@ -64,7 +61,6 @@ function drawContours(ctx, contourPaths, w, h) {
     contourPaths.forEach((path) => {
         if (path.points.length < 2) return;
 
-        // Style de trait
         ctx.strokeStyle = path.color;
         ctx.lineWidth = path.strokeWidth;
         ctx.lineCap = "round";
@@ -82,14 +78,12 @@ function drawContours(ctx, contourPaths, w, h) {
         if (path.closed) ctx.closePath();
         ctx.stroke();
 
-        // Remplissage zone fermée
         if (path.closed && path.fillColor && path.fillColor !== "transparent") {
             ctx.fillStyle = path.fillColor;
             ctx.globalAlpha = path.fillOpacity ?? 0.25;
             ctx.fill();
             ctx.globalAlpha = 1;
 
-            // Label centré
             if (path.points.length >= 3) {
                 const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
                 const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length;
@@ -110,7 +104,7 @@ function drawContours(ctx, contourPaths, w, h) {
 }
 
 /**
- * Dessine les éléments de légende sur le canvas
+ * Dessine les éléments de légende sur le canvas.
  * @param {CanvasRenderingContext2D} ctx
  * @param {object[]} legendItems
  * @param {number} w
@@ -130,14 +124,10 @@ function drawLegendItems(ctx, legendItems, w, h, imageCache) {
         ctx.translate(x, y);
         ctx.rotate((item.rotation * Math.PI) / 180);
 
-        // Rose des vents
         if (item.type === "compose" && symbol.shape === "north_arrow") {
             drawNorthArrow(ctx, 0, 0, item.width);
-        }
-        // Pentagon
-        else if (symbol.shape === "pentagon") {
-            const size = item.width;
-            const r = size / 2 - 2;
+        } else if (symbol.shape === "pentagon") {
+            const r = item.width / 2 - 2;
             ctx.strokeStyle = symbol.color;
             ctx.lineWidth = symbol.strokeWidth ?? 2;
             ctx.fillStyle = symbol.fillColor;
@@ -154,7 +144,6 @@ function drawLegendItems(ctx, legendItems, w, h, imageCache) {
             ctx.globalAlpha = 1;
             ctx.stroke();
 
-            // Label centré
             if (item.label) {
                 const fontSize = Math.max(10, Math.round(item.width / 8));
                 ctx.font = `bold ${fontSize}px sans-serif`;
@@ -166,11 +155,10 @@ function drawLegendItems(ctx, legendItems, w, h, imageCache) {
                 ctx.fillStyle = symbol.color;
                 ctx.fillText(item.label, 0, 0);
             }
-        }
-        // Texte annotation
-        else if (item.type === "texte") {
+        } else if (item.type === "texte") {
             const text = item.label || symbol.label;
-            ctx.font = "bold 14px sans-serif";
+            // ✅ item.width comme fontSize — cohérent avec SymbolLayer
+            ctx.font = `bold ${item.width}px sans-serif`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.strokeStyle = "#000";
@@ -178,9 +166,7 @@ function drawLegendItems(ctx, legendItems, w, h, imageCache) {
             ctx.strokeText(text, 0, 0);
             ctx.fillStyle = symbol.color ?? "#FFFF00";
             ctx.fillText(text, 0, 0);
-        }
-        // Symbole image
-        else if (symbol.imageFile) {
+        } else if (symbol.imageFile) {
             const img = imageCache.get(symbol.imageFile);
             if (img) {
                 ctx.drawImage(
@@ -198,7 +184,7 @@ function drawLegendItems(ctx, legendItems, w, h, imageCache) {
 }
 
 /**
- * Génère une image PNG du plan légendé et déclenche son téléchargement
+ * Génère une image PNG du plan légendé et déclenche son téléchargement.
  * @param {object} state - état applicatif complet
  * @param {string} [fileName='plan-ppms.png']
  * @returns {Promise<void>}
@@ -206,21 +192,17 @@ function drawLegendItems(ctx, legendItems, w, h, imageCache) {
 export async function exportToPng(state, fileName = "plan-ppms.png") {
     const { image, legendItems, contourPaths } = state;
 
-    // 1. Charge l'image de fond
     const bgImage = await loadImage(image.src);
     const w = image.naturalWidth;
     const h = image.naturalHeight;
 
-    // 2. Crée le canvas à la résolution native de l'image
     const canvas = document.createElement("canvas");
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext("2d");
 
-    // 3. Image de fond
     ctx.drawImage(bgImage, 0, 0, w, h);
 
-    // 4. Précharge les images de symboles
     const imageCache = new Map();
     const symbolFiles = [
         ...new Set(
@@ -240,13 +222,9 @@ export async function exportToPng(state, fileName = "plan-ppms.png") {
         })
     );
 
-    // 5. Contours et zones (sous les symboles)
     drawContours(ctx, contourPaths, w, h);
-
-    // 6. Symboles et textes (au-dessus des contours)
     drawLegendItems(ctx, legendItems, w, h, imageCache);
 
-    // 7. Téléchargement
     canvas.toBlob((blob) => {
         if (!blob) return;
         const url = URL.createObjectURL(blob);
