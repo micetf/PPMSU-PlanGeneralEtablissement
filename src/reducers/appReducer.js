@@ -314,6 +314,7 @@ export function appReducer(state, action) {
                     selectedSymbolKey: payload,
                     selectedTool: "place",
                     activeDrawingPathId: null,
+                    selectedItemId: null,
                 },
             };
         }
