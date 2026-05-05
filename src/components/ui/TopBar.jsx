@@ -1,5 +1,5 @@
 /**
- * @fileoverview Barre de titre — infos projet, sauvegarde, accès aux projets
+ * @fileoverview Barre de titre — infos projet, navigation, sauvegarde
  */
 import { useState } from "react";
 import PropTypes from "prop-types";
@@ -12,6 +12,7 @@ import { exportProject } from "../../utils/projectIO";
 import { ImportButton } from "./ImportButton";
 
 /**
+ * Indicateur de statut de sauvegarde
  * @param {{ isDirty:boolean, isSaving:boolean, saveResult:object|null }} props
  */
 function SaveStatus({ isDirty, isSaving, saveResult }) {
@@ -35,13 +36,17 @@ SaveStatus.propTypes = {
     isSaving: PropTypes.bool.isRequired,
     saveResult: PropTypes.object,
 };
-
 SaveStatus.defaultProps = { saveResult: null };
 
+/**
+ * Barre d'outils du workspace — module Plan Général
+ */
 export function TopBar() {
     const { state, actions } = useApp();
     const [showModal, setShowModal] = useState(false);
     const [showConfirmNew, setShowConfirmNew] = useState(false);
+    const [showConfirmBack, setShowConfirmBack] = useState(false);
+
     const {
         projects,
         isSaving,
@@ -54,8 +59,16 @@ export function TopBar() {
 
     const hasImage = Boolean(state.image.src);
 
+    /** Retour à l'accueil : confirmation si travail non sauvegardé */
+    const handleBackClick = () => {
+        if (state.ui.isDirty) {
+            setShowConfirmBack(true);
+        } else {
+            actions.setModule(null);
+        }
+    };
+
     const handleNewClick = () => {
-        // Demande confirmation uniquement si des modifications non sauvegardées
         if (state.ui.isDirty) {
             setShowConfirmNew(true);
         } else {
@@ -66,9 +79,32 @@ export function TopBar() {
     return (
         <>
             <header
-                className="flex items-center gap-3 px-4 h-12 bg-white border-b
-                         border-slate-200 shrink-0 z-10"
+                className="flex items-center gap-3 px-4 h-12 bg-white
+                               border-b border-slate-200 shrink-0 z-10"
             >
+                {/* Retour accueil */}
+                <button
+                    type="button"
+                    onClick={handleBackClick}
+                    title="Retourner à l'accueil"
+                    className="flex items-center gap-1 text-xs text-slate-400
+                               hover:text-slate-600 transition-colors shrink-0
+                               focus:outline-none focus-visible:ring-2
+                               focus-visible:ring-slate-400 rounded px-1 py-0.5"
+                    aria-label="Retourner à l'accueil"
+                >
+                    <span aria-hidden="true">←</span>
+                    <span className="hidden sm:inline">Accueil</span>
+                </button>
+
+                {/* Séparateur */}
+                <span
+                    className="text-slate-200 select-none shrink-0"
+                    aria-hidden="true"
+                >
+                    |
+                </span>
+
                 {/* Nom du projet */}
                 <input
                     type="text"
@@ -77,8 +113,8 @@ export function TopBar() {
                         actions.setProjectInfo({ name: e.target.value })
                     }
                     className="font-semibold text-sm text-slate-700 bg-transparent border-none
-                     focus:outline-none focus:bg-slate-50 focus:ring-2 focus:ring-blue-400
-                     rounded px-1 py-0.5 min-w-0 max-w-45 truncate"
+                               focus:outline-none focus:bg-slate-50 focus:ring-2 focus:ring-blue-400
+                               rounded px-1 py-0.5 min-w-0 max-w-45 truncate"
                     aria-label="Nom du projet"
                     placeholder="Nom du projet"
                 />
@@ -90,9 +126,9 @@ export function TopBar() {
                     onChange={(e) =>
                         actions.setProjectInfo({ schoolName: e.target.value })
                     }
-                    className="text-xs text-slate-400 bg-transparent border-none focus:outline-none
-                     focus:bg-slate-50 focus:ring-2 focus:ring-blue-400
-                     rounded px-1 py-0.5 min-w-0 max-w-50 truncate"
+                    className="text-xs text-slate-400 bg-transparent border-none
+                               focus:outline-none focus:bg-slate-50 focus:ring-2 focus:ring-blue-400
+                               rounded px-1 py-0.5 min-w-0 max-w-50 truncate"
                     aria-label="Nom de l'école"
                     placeholder="Nom de l'école…"
                 />
@@ -105,25 +141,26 @@ export function TopBar() {
                     saveResult={saveResult}
                 />
 
-                {/* Bouton Projets */}
+                {/* Projets */}
                 <button
                     type="button"
                     onClick={() => setShowModal(true)}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
-                     text-slate-600 hover:bg-slate-100 transition-colors
-                     focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                               text-slate-600 hover:bg-slate-100 transition-colors
+                               focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
                 >
                     📁 Projets
                 </button>
 
-                {/* Nouveau projet */}
+                {/* Nouveau */}
                 {hasImage && (
                     <button
                         type="button"
                         onClick={handleNewClick}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
-                       text-slate-600 hover:bg-slate-100 transition-colors
-                       focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                                   text-slate-600 hover:bg-slate-100 transition-colors
+                                   focus:outline-none focus-visible:ring-2
+                                   focus-visible:ring-slate-400"
                     >
                         ✚ Nouveau
                     </button>
@@ -136,8 +173,9 @@ export function TopBar() {
                             type="button"
                             onClick={() => exportProject(state)}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
-                         text-slate-600 hover:bg-slate-100 transition-colors
-                         focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                                       text-slate-600 hover:bg-slate-100 transition-colors
+                                       focus:outline-none focus-visible:ring-2
+                                       focus-visible:ring-slate-400"
                         >
                             📤 Exporter
                         </button>
@@ -154,10 +192,10 @@ export function TopBar() {
                         onClick={handleSave}
                         disabled={isSaving || !state.ui.isDirty}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
-                       font-medium bg-blue-500 text-white hover:bg-blue-600
-                       disabled:opacity-40 disabled:cursor-not-allowed
-                       transition-colors focus:outline-none
-                       focus-visible:ring-2 focus-visible:ring-blue-400"
+                                   font-medium bg-blue-500 text-white hover:bg-blue-600
+                                   disabled:opacity-40 disabled:cursor-not-allowed
+                                   transition-colors focus:outline-none
+                                   focus-visible:ring-2 focus-visible:ring-blue-400"
                     >
                         {isSaving ? "…" : "💾 Sauvegarder"}
                     </button>
@@ -174,9 +212,9 @@ export function TopBar() {
                             )
                         }
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
-                       font-medium bg-emerald-500 text-white hover:bg-emerald-600
-                       transition-colors focus:outline-none
-                       focus-visible:ring-2 focus-visible:ring-emerald-400"
+                                   font-medium bg-emerald-500 text-white hover:bg-emerald-600
+                                   transition-colors focus:outline-none
+                                   focus-visible:ring-2 focus-visible:ring-emerald-400"
                     >
                         📥 PNG
                     </button>
@@ -194,7 +232,7 @@ export function TopBar() {
                 />
             )}
 
-            {/* Confirmation nouveau projet */}
+            {/* Confirmation : nouveau projet */}
             {showConfirmNew && (
                 <ConfirmModal
                     title="Nouveau projet"
@@ -207,6 +245,22 @@ export function TopBar() {
                         handleNew();
                     }}
                     onCancel={() => setShowConfirmNew(false)}
+                />
+            )}
+
+            {/* Confirmation : retour accueil */}
+            {showConfirmBack && (
+                <ConfirmModal
+                    title="Retour à l'accueil"
+                    message="Des modifications non sauvegardées seront perdues. Quitter le projet ?"
+                    confirmLabel="Quitter"
+                    cancelLabel="Annuler"
+                    variant="warning"
+                    onConfirm={() => {
+                        setShowConfirmBack(false);
+                        actions.setModule(null);
+                    }}
+                    onCancel={() => setShowConfirmBack(false)}
                 />
             )}
         </>

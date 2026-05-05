@@ -5,22 +5,29 @@
 
 /** @enum {string} Types d'actions dispatchables */
 export const ACTION_TYPES = {
+    // ── Navigation modules ───────────────────────────────────────────────────
+    SET_MODULE: "SET_MODULE",
+    // ── Image ────────────────────────────────────────────────────────────────
     LOAD_IMAGE: "LOAD_IMAGE",
     CLEAR_IMAGE: "CLEAR_IMAGE",
+    // ── Projet ───────────────────────────────────────────────────────────────
     SET_PROJECT_INFO: "SET_PROJECT_INFO",
     LOAD_PROJECT: "LOAD_PROJECT",
     MARK_SAVED: "MARK_SAVED",
     RESET_PROJECT: "RESET_PROJECT",
+    // ── Légende ──────────────────────────────────────────────────────────────
     ADD_LEGEND_ITEM: "ADD_LEGEND_ITEM",
     UPDATE_LEGEND_ITEM: "UPDATE_LEGEND_ITEM",
     REMOVE_LEGEND_ITEM: "REMOVE_LEGEND_ITEM",
     DUPLICATE_LEGEND_ITEM: "DUPLICATE_LEGEND_ITEM",
+    // ── Contours ─────────────────────────────────────────────────────────────
     ADD_CONTOUR_PATH: "ADD_CONTOUR_PATH",
     ADD_CONTOUR_POINT: "ADD_CONTOUR_POINT",
     UPDATE_CONTOUR_PATH: "UPDATE_CONTOUR_PATH",
     CLOSE_CONTOUR_PATH: "CLOSE_CONTOUR_PATH",
     REMOVE_CONTOUR_PATH: "REMOVE_CONTOUR_PATH",
     UPDATE_CONTOUR_POINT: "UPDATE_CONTOUR_POINT",
+    // ── UI ───────────────────────────────────────────────────────────────────
     SET_SELECTED_TOOL: "SET_SELECTED_TOOL",
     SET_SELECTED_SYMBOL: "SET_SELECTED_SYMBOL",
     SET_SELECTED_ITEM: "SET_SELECTED_ITEM",
@@ -29,12 +36,16 @@ export const ACTION_TYPES = {
 };
 
 /**
+ * @typedef {'planGeneral'|'planNiveaux'|'coupuresFluides'|null} ModuleActif
+ *
  * @typedef {Object} AppState
- * @property {{id:string|null, name:string, schoolName:string, createdAt:string|null, updatedAt:string|null}} project
- * @property {{src:string|null, naturalWidth:number, naturalHeight:number, fileName:string}} image
+ * @property {{ id:string|null, name:string, schoolName:string, createdAt:string|null, updatedAt:string|null }} project
+ * @property {{ src:string|null, naturalWidth:number, naturalHeight:number, fileName:string }} image
  * @property {Array}  legendItems
  * @property {Array}  contourPaths
- * @property {{selectedTool:string, selectedSymbolKey:string|null, selectedItemId:string|null, activeDrawingPathId:string|null, zoom:number, panOffset:{x:number,y:number}, isDirty:boolean}} ui
+ * @property {{ moduleActif:ModuleActif, selectedTool:string, selectedSymbolKey:string|null,
+ *              selectedItemId:string|null, activeDrawingPathId:string|null,
+ *              zoom:number, panOffset:{x:number,y:number}, isDirty:boolean }} ui
  */
 
 /** @type {AppState} */
@@ -55,6 +66,7 @@ export const initialState = {
     legendItems: [],
     contourPaths: [],
     ui: {
+        moduleActif: null, // ← nouveau : pilote le routage interne
         selectedTool: "select",
         selectedSymbolKey: null,
         selectedItemId: null,
@@ -74,10 +86,8 @@ export const initialState = {
  */
 function cleanActiveDrawing(contourPaths, activeDrawingPathId) {
     if (!activeDrawingPathId) return contourPaths;
-
     const activePath = contourPaths.find((p) => p.id === activeDrawingPathId);
     if (!activePath || activePath.closed) return contourPaths;
-
     if (activePath.points.length >= 3) {
         return contourPaths.map((p) =>
             p.id === activeDrawingPathId
@@ -91,14 +101,21 @@ function cleanActiveDrawing(contourPaths, activeDrawingPathId) {
 /**
  * Reducer pur — aucun effet de bord
  * @param {AppState} state
- * @param {{type: string, payload?: any}} action
+ * @param {{ type: string, payload?: any }} action
  * @returns {AppState}
  */
 export function appReducer(state, action) {
     const { type, payload } = action;
 
     switch (type) {
-        // ── IMAGE ────────────────────────────────────────────────────────────────
+        // ── NAVIGATION ───────────────────────────────────────────────────────
+        case ACTION_TYPES.SET_MODULE:
+            return {
+                ...state,
+                ui: { ...state.ui, moduleActif: payload },
+            };
+
+        // ── IMAGE ────────────────────────────────────────────────────────────
         case ACTION_TYPES.LOAD_IMAGE:
             return {
                 ...state,
@@ -115,7 +132,7 @@ export function appReducer(state, action) {
         case ACTION_TYPES.CLEAR_IMAGE:
             return { ...initialState };
 
-        // ── PROJET ───────────────────────────────────────────────────────────────
+        // ── PROJET ───────────────────────────────────────────────────────────
         case ACTION_TYPES.SET_PROJECT_INFO:
             return {
                 ...state,
@@ -124,7 +141,11 @@ export function appReducer(state, action) {
             };
 
         case ACTION_TYPES.LOAD_PROJECT:
-            return { ...payload, ui: { ...initialState.ui } };
+            // moduleActif préservé : on reste dans le module courant après chargement
+            return {
+                ...payload,
+                ui: { ...initialState.ui, moduleActif: state.ui.moduleActif },
+            };
 
         case ACTION_TYPES.MARK_SAVED:
             return {
@@ -137,9 +158,13 @@ export function appReducer(state, action) {
             };
 
         case ACTION_TYPES.RESET_PROJECT:
-            return { ...initialState };
+            // moduleActif préservé : "Nouveau projet" reste dans le module courant
+            return {
+                ...initialState,
+                ui: { ...initialState.ui, moduleActif: state.ui.moduleActif },
+            };
 
-        // ── LÉGENDE ITEMS ────────────────────────────────────────────────────────
+        // ── LÉGENDE ITEMS ────────────────────────────────────────────────────
         case ACTION_TYPES.ADD_LEGEND_ITEM:
             return {
                 ...state,
@@ -172,65 +197,52 @@ export function appReducer(state, action) {
         case ACTION_TYPES.REMOVE_LEGEND_ITEM:
             return {
                 ...state,
-                legendItems: state.legendItems.filter(
-                    (item) => item.id !== payload
-                ),
-                ui: {
-                    ...state.ui,
-                    selectedItemId:
-                        state.ui.selectedItemId === payload
-                            ? null
-                            : state.ui.selectedItemId,
-                    isDirty: true,
-                },
+                legendItems: state.legendItems.filter((i) => i.id !== payload),
+                ui: { ...state.ui, isDirty: true },
             };
 
         case ACTION_TYPES.DUPLICATE_LEGEND_ITEM: {
-            const src = state.legendItems.find((i) => i.id === payload);
-            if (!src) return state;
-            const copy = {
-                ...src,
-                id: crypto.randomUUID(),
-                x: src.x + 2,
-                y: src.y + 2,
-                zIndex: state.legendItems.length + 1,
-            };
+            const source = state.legendItems.find((i) => i.id === payload);
+            if (!source) return state;
             return {
                 ...state,
-                legendItems: [...state.legendItems, copy],
-                ui: { ...state.ui, selectedItemId: copy.id, isDirty: true },
+                legendItems: [
+                    ...state.legendItems,
+                    {
+                        ...source,
+                        id: crypto.randomUUID(),
+                        x: source.x + 2,
+                        y: source.y + 2,
+                    },
+                ],
+                ui: { ...state.ui, isDirty: true },
             };
         }
 
-        // ── CONTOURS ─────────────────────────────────────────────────────────────
-        case ACTION_TYPES.ADD_CONTOUR_PATH: {
-            const { firstPoint, ...rest } = payload;
-            const newPath = {
-                ...rest,
-                id: crypto.randomUUID(),
-                points: firstPoint ? [firstPoint] : [],
-                closed: false,
-                isDrawing: true,
-            };
+        // ── CONTOURS ─────────────────────────────────────────────────────────
+        case ACTION_TYPES.ADD_CONTOUR_PATH:
             return {
                 ...state,
-                contourPaths: [...state.contourPaths, newPath],
+                contourPaths: [
+                    ...state.contourPaths,
+                    { ...payload, id: crypto.randomUUID() },
+                ],
                 ui: {
                     ...state.ui,
-                    activeDrawingPathId: newPath.id,
+                    activeDrawingPathId: payload.id ?? null,
                     isDirty: true,
                 },
             };
-        }
 
         case ACTION_TYPES.ADD_CONTOUR_POINT:
             return {
                 ...state,
                 contourPaths: state.contourPaths.map((p) =>
-                    p.id === payload.id
+                    p.id === payload.pathId
                         ? { ...p, points: [...p.points, payload.point] }
                         : p
                 ),
+                ui: { ...state.ui, isDirty: true },
             };
 
         case ACTION_TYPES.CLOSE_CONTOUR_PATH:
@@ -278,7 +290,7 @@ export function appReducer(state, action) {
                 ui: { ...state.ui, isDirty: true },
             };
 
-        // ── UI ───────────────────────────────────────────────────────────────────
+        // ── UI ───────────────────────────────────────────────────────────────
         case ACTION_TYPES.SET_SELECTED_TOOL: {
             const cleaned = cleanActiveDrawing(
                 state.contourPaths,
@@ -292,7 +304,6 @@ export function appReducer(state, action) {
                     selectedTool: payload,
                     selectedItemId: null,
                     activeDrawingPathId: null,
-                    // Réinitialise la sélection de symbole quand on revient à select
                     selectedSymbolKey:
                         payload === "select"
                             ? null
@@ -320,10 +331,7 @@ export function appReducer(state, action) {
         }
 
         case ACTION_TYPES.SET_SELECTED_ITEM:
-            return {
-                ...state,
-                ui: { ...state.ui, selectedItemId: payload },
-            };
+            return { ...state, ui: { ...state.ui, selectedItemId: payload } };
 
         case ACTION_TYPES.SET_ZOOM:
             return {
@@ -332,10 +340,7 @@ export function appReducer(state, action) {
             };
 
         case ACTION_TYPES.SET_PAN:
-            return {
-                ...state,
-                ui: { ...state.ui, panOffset: payload },
-            };
+            return { ...state, ui: { ...state.ui, panOffset: payload } };
 
         default:
             console.warn(`[appReducer] Action inconnue : ${type}`);

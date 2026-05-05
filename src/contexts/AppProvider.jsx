@@ -15,6 +15,16 @@ import { importProject as parseImportFile } from "../utils/projectIO";
 export function AppProvider({ children }) {
     const [state, dispatch] = useReducer(appReducer, initialState);
 
+    // ── NAVIGATION ─────────────────────────────────────────────────────────────
+
+    /**
+     * Active un module ou revient à l'accueil (null)
+     * @param {import('../reducers/appReducer').ModuleActif} module
+     */
+    const setModule = useCallback((module) => {
+        dispatch({ type: ACTION_TYPES.SET_MODULE, payload: module });
+    }, []);
+
     // ── IMAGE ──────────────────────────────────────────────────────────────────
 
     /** @param {File} file */
@@ -327,6 +337,7 @@ export function AppProvider({ children }) {
     // ── Exposition ─────────────────────────────────────────────────────────────
 
     const actions = {
+        setModule, // ← NOUVEAU
         loadImage,
         addLegendItem,
         updateLegendItem,
