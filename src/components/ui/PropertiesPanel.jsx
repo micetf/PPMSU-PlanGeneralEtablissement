@@ -5,7 +5,7 @@ import PropTypes from "prop-types";
 import { useApp } from "../../hooks/useApp";
 import { useSelectedItem } from "../../hooks/useSelectedItem";
 import { NumberField, TextField, SliderField } from "./PropertiesField";
-import { getSymbolByKey } from '../../constants/ppmsLegend'
+import { getSymbolByKey } from "../../constants/ppmsLegend";
 
 /**
  * Bouton d'action
@@ -32,35 +32,29 @@ ActionButton.propTypes = {
 };
 
 /**
- * Contrôle taille — ratio toujours verrouillé
+ * Contrôle taille — Un seul degré de liberté → un seul contrôle
  * @param {{ item:object, onChange:Function }} props
  */
-function SizeControl({ item, onChange }) {
+
+function SizeControl({ item, symbol, onChange }) {
+    const DEFAULT_SIZE = symbol?.defaultSize ?? 48;
     const ratio = item.height > 0 ? item.width / item.height : 1;
+    // Échelle en % de la taille par défaut : 50 % → 200 %
+    const scale = Math.round((item.width / DEFAULT_SIZE) * 100);
 
     return (
-        <div className="grid grid-cols-2 gap-2">
-            <NumberField
-                label="Largeur"
-                value={item.width}
-                min={16}
-                max={800}
-                onChange={(w) =>
-                    onChange({ width: w, height: Math.round(w / ratio) })
-                }
-                unit="px"
-            />
-            <NumberField
-                label="Hauteur"
-                value={item.height}
-                min={16}
-                max={800}
-                onChange={(h) =>
-                    onChange({ height: h, width: Math.round(h * ratio) })
-                }
-                unit="px"
-            />
-        </div>
+        <SliderField
+            label="Taille"
+            value={scale}
+            min={50}
+            max={150}
+            step={5}
+            unit=" %"
+            onChange={(pct) => {
+                const w = Math.round((pct / 100) * DEFAULT_SIZE);
+                onChange({ width: w, height: Math.round(w / ratio) });
+            }}
+        />
     );
 }
 
