@@ -4,7 +4,7 @@
  * tout chemin de déploiement (racine ou sous-répertoire).
  *
  * En dev  : BASE_URL = '/'
- * En prod : BASE_URL = '/PPMSU-PlanGeneralEcole/'
+ * En prod : BASE_URL = '/PPMSU-AtelierVisuel/'
  */
 
 /**

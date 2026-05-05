@@ -1,9 +1,18 @@
-# PPMS — Plan Général de l'Établissement
+# PPMSU — Atelier Visuel
 
-Outil de légendage de plan d'établissement scolaire, conforme au **fascicule 2**
-du PPMS Unifié (Eduscol).
+Outil de production des visuels destinés au Plan Particulier de Mise en Sûreté
+Unifié (PPMS), conforme au **fascicule 2** Eduscol.
 
-## Fonctionnalités
+## Modules disponibles
+
+- **Plan Général de l'École** — légendage d'une vue aérienne selon la légende
+  officielle du fascicule 2
+- **Plans des Niveaux** _(en développement)_ — annotation des plans
+  d'intervention par niveau de bâtiment : ZMS, accès, escaliers, photos
+- **Coupures de Fluides** _(en développement)_ — annotation des photos des
+  systèmes de coupure d'eau, gaz et électricité
+
+## Fonctionnalités (module Plan Général)
 
 - Chargement d'une vue aérienne (JPG, PNG, WebP — 10 Mo max)
 - Catalogue officiel de 14 symboles répartis en 9 catégories
@@ -32,10 +41,8 @@ pnpm dev
 
 ```bash
 pnpm build
-# Dossier dist/ à déposer sur le serveur
+# Dossier dist/ à déposer dans /PPMSU-AtelierVisuel/ sur le serveur
 ```
-
-Adapter `base` dans `vite.config.js` selon le sous-répertoire de déploiement.
 
 ## Pictogrammes officiels
 
@@ -54,12 +61,12 @@ Permet le partage entre postes sans infrastructure serveur.
 
 ## Raccourcis clavier
 
-| Touche          | Action                                            |
-| --------------- | ------------------------------------------------- |
-| `Échap`         | _(à implémenter)_ Annuler le tracé en cours       |
-| `Suppr`         | _(à implémenter)_ Supprimer l'élément sélectionné |
-| `Alt + glisser` | Déplacer la vue (pan)                             |
-| `Molette`       | Zoom centré sur le curseur                        |
+| Touche          | Action                           |
+| --------------- | -------------------------------- |
+| `Alt + glisser` | Déplacer la vue (pan)            |
+| `Molette`       | Zoom centré sur le curseur       |
+| `Suppr`         | Supprimer l'élément sélectionné  |
+| `Échap`         | Annuler le tracé en cours        |
 
 ## Référence
 
