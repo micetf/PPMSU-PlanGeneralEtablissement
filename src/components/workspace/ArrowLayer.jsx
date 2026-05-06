@@ -1,7 +1,7 @@
 /**
  * @fileoverview Couche SVG — flèches (polylignes) du niveau actif.
  * Chaque flèche est une polyligne avec une pointe au dernier segment.
- * Sélectionnable et déplaçable en mode "select".
+ * Sélectionnable, déplaçable (entier ou nœud par nœud) et pivoTable en mode "select".
  */
 import { useRef } from "react";
 import PropTypes from "prop-types";
@@ -32,6 +32,63 @@ function computeArrowhead(pts, strokeWidth = 3) {
     };
 }
 
+/** Nœud draggable individuel d'une flèche sélectionnée */
+function DraggableArrowNode({ item, nodeIndex, svgPt, activeNiveau, zoom }) {
+    const { actions } = useApp();
+    const dragOrigin = useRef(null);
+
+    const { onDragStart } = useDrag({
+        onMove: (dx, dy) => {
+            if (!dragOrigin.current || !activeNiveau) return;
+            const { naturalWidth, naturalHeight } = activeNiveau.image;
+            const rotation = item.rotation ?? 0;
+
+            // Convertir le delta écran en delta % image,
+            // puis tourner dans le référentiel canonique (anti-rotation)
+            const dxVis = (dx / zoom / naturalWidth) * 100;
+            const dyVis = (dy / zoom / naturalHeight) * 100;
+            const rad = -(rotation * Math.PI) / 180;
+            const dxPct = dxVis * Math.cos(rad) - dyVis * Math.sin(rad);
+            const dyPct = dxVis * Math.sin(rad) + dyVis * Math.cos(rad);
+
+            const newPoints = dragOrigin.current.map((p, i) =>
+                i === nodeIndex
+                    ? { x: p.x + dxPct, y: p.y + dyPct }
+                    : { ...p }
+            );
+            actions.updateNiveauLegendItem(item.id, { points: newPoints });
+        },
+    });
+
+    const handleMouseDown = (e) => {
+        e.stopPropagation();
+        dragOrigin.current = (item.points ?? []).map((p) => ({ ...p }));
+        onDragStart(e);
+    };
+
+    return (
+        <circle
+            cx={svgPt.x}
+            cy={svgPt.y}
+            r={6}
+            fill="#3B82F6"
+            fillOpacity={0.8}
+            stroke="#fff"
+            strokeWidth={1.5}
+            style={{ cursor: "crosshair", pointerEvents: "all" }}
+            onMouseDown={handleMouseDown}
+        />
+    );
+}
+
+DraggableArrowNode.propTypes = {
+    item: PropTypes.object.isRequired,
+    nodeIndex: PropTypes.number.isRequired,
+    svgPt: PropTypes.shape({ x: PropTypes.number, y: PropTypes.number }).isRequired,
+    activeNiveau: PropTypes.object.isRequired,
+    zoom: PropTypes.number.isRequired,
+};
+
 function ArrowItem({ item, imageWidth, imageHeight }) {
     const { state, actions } = useApp();
     const symbol = getNiveauSymbolByKey(item.symbolKey);
@@ -47,6 +104,7 @@ function ArrowItem({ item, imageWidth, imageHeight }) {
         onMove: (dx, dy) => {
             if (!dragOrigin.current || !activeNiveau) return;
             const { naturalWidth, naturalHeight } = activeNiveau.image;
+            // Déplacement global : pas besoin de dé-rotation (on ajoute le même delta % à tous les points)
             const dxPct = (dx / zoom / naturalWidth) * 100;
             const dyPct = (dy / zoom / naturalHeight) * 100;
             actions.updateNiveauLegendItem(item.id, {
@@ -76,6 +134,7 @@ function ArrowItem({ item, imageWidth, imageHeight }) {
             : []
     );
 
+    // Points en coordonnées SVG (non-rotatés — rotation appliquée via transform)
     const pts = rawPts.map((p) => ({
         x: (p.x / 100) * imageWidth,
         y: (p.y / 100) * imageHeight,
@@ -91,15 +150,19 @@ function ArrowItem({ item, imageWidth, imageHeight }) {
     const polyPts = shortPts.map((p) => `${p.x},${p.y}`).join(" ");
     const allPts = pts.map((p) => `${p.x},${p.y}`).join(" ");
 
+    // Rotation SVG autour du barycentre des points canoniques
+    const rotation = item.rotation ?? 0;
+    const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+    const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+    const rotateTransform = rotation ? `rotate(${rotation}, ${cx}, ${cy})` : undefined;
+
     const isSelectable = selectedTool === "select";
 
     return (
         <g
+            transform={rotateTransform}
             opacity={item.opacity ?? 1}
-            style={{
-                pointerEvents: isSelectable ? "auto" : "none",
-                cursor: isSelectable ? "grab" : "default",
-            }}
+            style={{ cursor: isSelectable ? "grab" : "default" }}
             onMouseDown={handleMouseDown}
             onClick={(e) => {
                 if (isSelectable) {
@@ -116,33 +179,21 @@ function ArrowItem({ item, imageWidth, imageHeight }) {
                 strokeWidth={16}
                 strokeLinejoin="round"
                 strokeLinecap="round"
+                style={{ pointerEvents: isSelectable ? "stroke" : "none" }}
             />
 
             {/* Contour de sélection */}
             {isSelected && (
-                <>
-                    <polyline
-                        points={polyPts}
-                        fill="none"
-                        stroke="#3B82F6"
-                        strokeWidth={strokeWidth + 6}
-                        strokeOpacity={0.3}
-                        strokeLinejoin="round"
-                        strokeLinecap="round"
-                        style={{ pointerEvents: "none" }}
-                    />
-                    {pts.map((p, i) => (
-                        <circle
-                            key={i}
-                            cx={p.x}
-                            cy={p.y}
-                            r={5}
-                            fill="#3B82F6"
-                            fillOpacity={0.5}
-                            style={{ pointerEvents: "none" }}
-                        />
-                    ))}
-                </>
+                <polyline
+                    points={polyPts}
+                    fill="none"
+                    stroke="#3B82F6"
+                    strokeWidth={strokeWidth + 6}
+                    strokeOpacity={0.3}
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                    style={{ pointerEvents: "none" }}
+                />
             )}
 
             {/* Corps de la polyligne */}
@@ -165,6 +216,18 @@ function ArrowItem({ item, imageWidth, imageHeight }) {
                 strokeLinejoin="round"
                 style={{ pointerEvents: "none" }}
             />
+
+            {/* Nœuds déplaçables (mode select, sélectionné) */}
+            {isSelected && isSelectable && activeNiveau && pts.map((p, i) => (
+                <DraggableArrowNode
+                    key={i}
+                    item={item}
+                    nodeIndex={i}
+                    svgPt={p}
+                    activeNiveau={activeNiveau}
+                    zoom={zoom}
+                />
+            ))}
         </g>
     );
 }

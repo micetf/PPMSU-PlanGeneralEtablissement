@@ -23,18 +23,10 @@ export const NIVEAUX_SYMBOLS = [
     },
     {
         key: "fleche_acces",
-        label: "Accès",
+        label: "Flèche",
         category: "fleches",
         type: NIVEAUX_ELEMENT_TYPES.FLECHE,
         color: "#EA580C",
-        strokeWidth: 3,
-    },
-    {
-        key: "fleche_escalier",
-        label: "Escalier",
-        category: "fleches",
-        type: NIVEAUX_ELEMENT_TYPES.FLECHE,
-        color: "#9333EA",
         strokeWidth: 3,
     },
     {

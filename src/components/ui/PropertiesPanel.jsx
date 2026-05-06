@@ -1,6 +1,7 @@
 /**
  * @fileoverview Panneau de propriétés de l'élément sélectionné (module-aware)
  */
+import { useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { useApp } from "../../hooks/useApp";
 import { useSelectedItem } from "../../hooks/useSelectedItem";
@@ -287,6 +288,10 @@ function FlecheProperties({ item, onUpdate }) {
                 onChange={(v) => update({ strokeWidth: v })}
                 unit="px"
             />
+            <RotationControl
+                value={item.rotation ?? 0}
+                onChange={(v) => update({ rotation: v })}
+            />
             <SliderField
                 label="Opacité"
                 value={item.opacity ?? 1}
@@ -394,6 +399,10 @@ export function PropertiesPanel() {
     const { item, type, symbol } = useSelectedItem();
     const { moduleActif } = state.ui;
 
+    const panelRef = useRef(null);
+    const dragState = useRef(null);
+    const [panelPos, setPanelPos] = useState(null);
+
     if (!item) return null;
 
     const isNiveaux = moduleActif === "planNiveaux";
@@ -442,14 +451,53 @@ export function PropertiesPanel() {
         item.type !== NIVEAUX_ELEMENT_TYPES.FLECHE &&
         item.type !== NIVEAUX_ELEMENT_TYPES.PHOTO;
 
+    const handleHeaderMouseDown = (e) => {
+        if (e.target.closest("button")) return;
+        e.preventDefault();
+        const panelEl = panelRef.current;
+        if (!panelEl) return;
+        const panelRect = panelEl.getBoundingClientRect();
+        const parentRect = panelEl.offsetParent?.getBoundingClientRect() ?? { left: 0, top: 0 };
+        dragState.current = {
+            startMouse: { x: e.clientX, y: e.clientY },
+            startPanel: {
+                x: panelRect.left - parentRect.left,
+                y: panelRect.top - parentRect.top,
+            },
+        };
+        const onMove = (ev) => {
+            if (!dragState.current) return;
+            setPanelPos({
+                x: dragState.current.startPanel.x + ev.clientX - dragState.current.startMouse.x,
+                y: dragState.current.startPanel.y + ev.clientY - dragState.current.startMouse.y,
+            });
+        };
+        const onUp = () => {
+            dragState.current = null;
+            document.removeEventListener("mousemove", onMove);
+            document.removeEventListener("mouseup", onUp);
+        };
+        document.addEventListener("mousemove", onMove);
+        document.addEventListener("mouseup", onUp);
+    };
+
+    const posStyle = panelPos
+        ? { position: "absolute", left: panelPos.x, top: panelPos.y, right: "auto" }
+        : {};
+
     return (
         <aside
+            ref={panelRef}
             className="absolute top-4 right-4 z-20 w-56 bg-white rounded-2xl shadow-xl
                        border border-slate-200 flex flex-col overflow-hidden"
+            style={posStyle}
             aria-label="Propriétés de l'élément"
         >
             {/* En-tête */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 shrink-0">
+            <div
+                className="flex items-center justify-between px-4 py-3 border-b border-slate-100 shrink-0 cursor-move select-none"
+                onMouseDown={handleHeaderMouseDown}
+            >
                 <div className="min-w-0">
                     <p className="text-xs font-semibold text-slate-700 truncate">
                         {panelLabel}
