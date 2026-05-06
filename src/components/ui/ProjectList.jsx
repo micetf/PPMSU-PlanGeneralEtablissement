@@ -39,22 +39,19 @@ function ProjectItem({ project, isCurrent, onLoad, onDelete, variant }) {
             {/* Infos */}
             <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-slate-700 truncate">
-                    {project.name}
+                    {project.schoolName || project.name}
                     {isCurrent && (
                         <span className="ml-2 text-[10px] text-blue-500 font-normal">
                             (en cours)
                         </span>
                     )}
                 </p>
-                {project.schoolName && (
+                {project.name && project.name !== project.schoolName && (
                     <p className="text-xs text-slate-500 truncate">
-                        {project.schoolName}
+                        {project.name}
                     </p>
                 )}
                 <p className="text-[10px] text-slate-400 mt-0.5">
-                    {project.fileName && (
-                        <span className="mr-2">🗺 {project.fileName}</span>
-                    )}
                     {formatDate(project.savedAt)}
                 </p>
             </div>
