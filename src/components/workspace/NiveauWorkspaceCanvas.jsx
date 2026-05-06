@@ -66,13 +66,12 @@ ZoomControls.propTypes = {
 };
 
 /**
- * @param {{ cursorPoint:object|null, pendingArrowStart:object|null,
- *           arrowCursorPos:object|null, onMouseMove:Function,
- *           onCanvasClick:Function, onDblClick:Function }} props
+ * @param {{ cursorPoint:object|null, arrowPoints:object[], arrowCursorPos:object|null,
+ *           onMouseMove:Function, onCanvasClick:Function, onDblClick:Function }} props
  */
 export function NiveauWorkspaceCanvas({
     cursorPoint,
-    pendingArrowStart,
+    arrowPoints,
     arrowCursorPos,
     onMouseMove,
     onCanvasClick,
@@ -182,12 +181,13 @@ export function NiveauWorkspaceCanvas({
                         onUpdatePoint={(id, idx, pt) =>
                             actions.updateNiveauContourPoint(id, idx, pt)
                         }
+                        showLabel={false}
                     />
                     <NiveauSymbolLayer imageWidth={imgW} imageHeight={imgH} />
                     <ArrowLayer
                         imageWidth={imgW}
                         imageHeight={imgH}
-                        pendingArrowStart={pendingArrowStart}
+                        arrowPoints={arrowPoints}
                         arrowCursorPos={arrowCursorPos}
                     />
                 </div>
@@ -223,7 +223,7 @@ export function NiveauWorkspaceCanvas({
 
 NiveauWorkspaceCanvas.propTypes = {
     cursorPoint: PropTypes.object,
-    pendingArrowStart: PropTypes.object,
+    arrowPoints: PropTypes.array,
     arrowCursorPos: PropTypes.object,
     onMouseMove: PropTypes.func,
     onCanvasClick: PropTypes.func,
@@ -232,7 +232,7 @@ NiveauWorkspaceCanvas.propTypes = {
 
 NiveauWorkspaceCanvas.defaultProps = {
     cursorPoint: null,
-    pendingArrowStart: null,
+    arrowPoints: [],
     arrowCursorPos: null,
     onMouseMove: null,
     onCanvasClick: null,

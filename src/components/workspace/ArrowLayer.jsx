@@ -1,28 +1,34 @@
 /**
- * @fileoverview Couche SVG — flèches d'accès et d'escalier du niveau actif.
- * Affiche les flèches numérotées + un trait fantôme pendant le dessin.
- * Sélectionnable en mode "select" via clic.
+ * @fileoverview Couche SVG — flèches (polylignes) du niveau actif.
+ * Chaque flèche est une polyligne avec une pointe au dernier segment.
+ * Sélectionnable et déplaçable en mode "select".
  */
+import { useRef } from "react";
 import PropTypes from "prop-types";
 import { useApp } from "../../hooks/useApp";
+import { useDrag } from "../../hooks/useDrag";
 import { getNiveauSymbolByKey, NIVEAUX_ELEMENT_TYPES } from "../../constants/niveauxLegend";
 
 const ARROWHEAD_LEN = 14;
 const ARROWHEAD_ANGLE = Math.PI / 6;
 const ARROWHEAD_SHORTEN = ARROWHEAD_LEN * 0.75;
 
-function computeArrowGeometry(x1, y1, x2, y2) {
-    const angle = Math.atan2(y2 - y1, x2 - x1);
-    const lx2 = x2 - ARROWHEAD_SHORTEN * Math.cos(angle);
-    const ly2 = y2 - ARROWHEAD_SHORTEN * Math.sin(angle);
-    const ax1 = x2 - ARROWHEAD_LEN * Math.cos(angle - ARROWHEAD_ANGLE);
-    const ay1 = y2 - ARROWHEAD_LEN * Math.sin(angle - ARROWHEAD_ANGLE);
-    const ax2 = x2 - ARROWHEAD_LEN * Math.cos(angle + ARROWHEAD_ANGLE);
-    const ay2 = y2 - ARROWHEAD_LEN * Math.sin(angle + ARROWHEAD_ANGLE);
+function computeArrowhead(pts) {
+    if (pts.length < 2) return null;
+    const last = pts[pts.length - 1];
+    const prev = pts[pts.length - 2];
+    const angle = Math.atan2(last.y - prev.y, last.x - prev.x);
     return {
-        lineEnd: { x: lx2, y: ly2 },
-        arrowPts: `${x2},${y2} ${ax1},${ay1} ${ax2},${ay2}`,
-        mid: { x: (x1 + x2) / 2, y: (y1 + y2) / 2 },
+        tip: last,
+        lineEnd: {
+            x: last.x - ARROWHEAD_SHORTEN * Math.cos(angle),
+            y: last.y - ARROWHEAD_SHORTEN * Math.sin(angle),
+        },
+        arrowPts: [
+            `${last.x},${last.y}`,
+            `${last.x - ARROWHEAD_LEN * Math.cos(angle - ARROWHEAD_ANGLE)},${last.y - ARROWHEAD_LEN * Math.sin(angle - ARROWHEAD_ANGLE)}`,
+            `${last.x - ARROWHEAD_LEN * Math.cos(angle + ARROWHEAD_ANGLE)},${last.y - ARROWHEAD_LEN * Math.sin(angle + ARROWHEAD_ANGLE)}`,
+        ].join(" "),
     };
 }
 
@@ -30,111 +36,135 @@ function ArrowItem({ item, imageWidth, imageHeight }) {
     const { state, actions } = useApp();
     const symbol = getNiveauSymbolByKey(item.symbolKey);
     const isSelected = state.ui.selectedItemId === item.id;
-    const { selectedTool } = state.ui;
+    const { zoom, selectedTool } = state.ui;
+    const dragOrigin = useRef(null);
 
-    const color = symbol?.color ?? "#EA580C";
-    const strokeWidth = symbol?.strokeWidth ?? 3;
-    const opacity = item.opacity ?? 1;
+    const activeNiveau = state.planNiveaux.niveaux.find(
+        (n) => n.id === state.planNiveaux.activeNiveauId
+    );
 
-    const x1 = (item.startX / 100) * imageWidth;
-    const y1 = (item.startY / 100) * imageHeight;
-    const x2 = (item.endX / 100) * imageWidth;
-    const y2 = (item.endY / 100) * imageHeight;
+    const { onDragStart } = useDrag({
+        onMove: (dx, dy) => {
+            if (!dragOrigin.current || !activeNiveau) return;
+            const { naturalWidth, naturalHeight } = activeNiveau.image;
+            const dxPct = (dx / zoom / naturalWidth) * 100;
+            const dyPct = (dy / zoom / naturalHeight) * 100;
+            actions.updateNiveauLegendItem(item.id, {
+                points: dragOrigin.current.map((p) => ({
+                    x: p.x + dxPct,
+                    y: p.y + dyPct,
+                })),
+            });
+        },
+    });
 
-    const { lineEnd, arrowPts, mid } = computeArrowGeometry(x1, y1, x2, y2);
-
-    const handleClick = (e) => {
+    const handleMouseDown = (e) => {
         if (selectedTool !== "select") return;
         e.stopPropagation();
         actions.selectItem(item.id);
+        dragOrigin.current = (item.points ?? []).map((p) => ({ ...p }));
+        onDragStart(e);
     };
+
+    const color = item.color ?? symbol?.color ?? "#EA580C";
+    const strokeWidth = item.strokeWidth ?? symbol?.strokeWidth ?? 3;
+
+    // Compatibilité avec l'ancien format startX/Y endX/Y
+    const rawPts = item.points ?? (
+        item.startX !== undefined
+            ? [{ x: item.startX, y: item.startY }, { x: item.endX, y: item.endY }]
+            : []
+    );
+
+    const pts = rawPts.map((p) => ({
+        x: (p.x / 100) * imageWidth,
+        y: (p.y / 100) * imageHeight,
+    }));
+
+    if (pts.length < 2) return null;
+
+    const head = computeArrowhead(pts);
+
+    // Polyline raccourcie (sans le bout pour laisser place à la pointe)
+    const shortPts = [...pts];
+    shortPts[shortPts.length - 1] = head.lineEnd;
+    const polyPts = shortPts.map((p) => `${p.x},${p.y}`).join(" ");
+    const allPts = pts.map((p) => `${p.x},${p.y}`).join(" ");
 
     const isSelectable = selectedTool === "select";
 
     return (
         <g
-            opacity={opacity}
+            opacity={item.opacity ?? 1}
             style={{
                 pointerEvents: isSelectable ? "auto" : "none",
-                cursor: isSelectable ? "pointer" : "default",
+                cursor: isSelectable ? "grab" : "default",
             }}
-            onClick={handleClick}
-            role="button"
-            aria-label={`Flèche ${item.numero} — ${symbol?.label ?? ""}`}
-            aria-pressed={isSelected}
+            onMouseDown={handleMouseDown}
+            onClick={(e) => {
+                if (isSelectable) {
+                    e.stopPropagation();
+                    actions.selectItem(item.id);
+                }
+            }}
         >
             {/* Zone de clic élargie */}
-            <line
-                x1={x1}
-                y1={y1}
-                x2={lineEnd.x}
-                y2={lineEnd.y}
+            <polyline
+                points={allPts}
+                fill="none"
                 stroke="transparent"
-                strokeWidth={14}
+                strokeWidth={16}
+                strokeLinejoin="round"
+                strokeLinecap="round"
             />
 
             {/* Contour de sélection */}
             {isSelected && (
                 <>
-                    <line
-                        x1={x1}
-                        y1={y1}
-                        x2={lineEnd.x}
-                        y2={lineEnd.y}
+                    <polyline
+                        points={polyPts}
+                        fill="none"
                         stroke="#3B82F6"
-                        strokeWidth={strokeWidth + 5}
+                        strokeWidth={strokeWidth + 6}
                         strokeOpacity={0.3}
+                        strokeLinejoin="round"
+                        strokeLinecap="round"
                         style={{ pointerEvents: "none" }}
                     />
-                    <circle cx={x1} cy={y1} r={5} fill="#3B82F6" fillOpacity={0.4} />
-                    <circle cx={x2} cy={y2} r={5} fill="#3B82F6" fillOpacity={0.4} />
+                    {pts.map((p, i) => (
+                        <circle
+                            key={i}
+                            cx={p.x}
+                            cy={p.y}
+                            r={5}
+                            fill="#3B82F6"
+                            fillOpacity={0.5}
+                            style={{ pointerEvents: "none" }}
+                        />
+                    ))}
                 </>
             )}
 
-            {/* Corps de la flèche */}
-            <line
-                x1={x1}
-                y1={y1}
-                x2={lineEnd.x}
-                y2={lineEnd.y}
+            {/* Corps de la polyligne */}
+            <polyline
+                points={polyPts}
+                fill="none"
                 stroke={color}
                 strokeWidth={strokeWidth}
                 strokeLinecap="round"
+                strokeLinejoin="round"
                 style={{ pointerEvents: "none" }}
             />
 
-            {/* Pointe */}
+            {/* Pointe de flèche */}
             <polygon
-                points={arrowPts}
+                points={head.arrowPts}
                 fill={color}
                 stroke={color}
                 strokeWidth={1}
                 strokeLinejoin="round"
                 style={{ pointerEvents: "none" }}
             />
-
-            {/* Cercle numéro au milieu */}
-            <circle
-                cx={mid.x}
-                cy={mid.y}
-                r={10}
-                fill="white"
-                stroke={color}
-                strokeWidth={1.5}
-                style={{ pointerEvents: "none" }}
-            />
-            <text
-                x={mid.x}
-                y={mid.y}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fontSize="9"
-                fontWeight="bold"
-                fill={color}
-                style={{ pointerEvents: "none", userSelect: "none" }}
-            >
-                {item.numero}
-            </text>
         </g>
     );
 }
@@ -145,12 +175,7 @@ ArrowItem.propTypes = {
     imageHeight: PropTypes.number.isRequired,
 };
 
-export function ArrowLayer({
-    imageWidth,
-    imageHeight,
-    pendingArrowStart,
-    arrowCursorPos,
-}) {
+export function ArrowLayer({ imageWidth, imageHeight, arrowPoints, arrowCursorPos }) {
     const { state } = useApp();
     const activeNiveau = state.planNiveaux.niveaux.find(
         (n) => n.id === state.planNiveaux.activeNiveauId
@@ -161,27 +186,21 @@ export function ArrowLayer({
         (item) => item.type === NIVEAUX_ELEMENT_TYPES.FLECHE
     );
 
-    const hasPending = Boolean(pendingArrowStart && arrowCursorPos);
-    const pendingX1 = pendingArrowStart
-        ? (pendingArrowStart.x / 100) * imageWidth
-        : 0;
-    const pendingY1 = pendingArrowStart
-        ? (pendingArrowStart.y / 100) * imageHeight
-        : 0;
-    const pendingX2 = arrowCursorPos ? (arrowCursorPos.x / 100) * imageWidth : 0;
-    const pendingY2 = arrowCursorPos ? (arrowCursorPos.y / 100) * imageHeight : 0;
+    // Polyligne fantôme pendant le dessin
+    const ghostPts = arrowCursorPos
+        ? [...arrowPoints, arrowCursorPos]
+        : arrowPoints;
 
-    let pendingGeo = null;
-    if (hasPending) {
-        pendingGeo = computeArrowGeometry(
-            pendingX1,
-            pendingY1,
-            pendingX2,
-            pendingY2
-        );
-    }
+    const ghostHead = ghostPts.length >= 2
+        ? computeArrowhead(
+              ghostPts.map((p) => ({
+                  x: (p.x / 100) * imageWidth,
+                  y: (p.y / 100) * imageHeight,
+              }))
+          )
+        : null;
 
-    if (!arrows.length && !pendingArrowStart) return null;
+    if (!arrows.length && !arrowPoints.length) return null;
 
     return (
         <svg
@@ -201,34 +220,49 @@ export function ArrowLayer({
                 />
             ))}
 
-            {/* Flèche fantôme pendant le dessin */}
-            {pendingArrowStart && (
+            {/* Premier sommet posé */}
+            {arrowPoints.length === 1 && (
                 <circle
-                    cx={pendingX1}
-                    cy={pendingY1}
+                    cx={(arrowPoints[0].x / 100) * imageWidth}
+                    cy={(arrowPoints[0].y / 100) * imageHeight}
                     r={5}
                     fill="#94A3B8"
                     style={{ pointerEvents: "none" }}
                 />
             )}
-            {hasPending && pendingGeo && (
+
+            {/* Polyligne fantôme */}
+            {ghostPts.length >= 2 && ghostHead && (
                 <g style={{ pointerEvents: "none" }}>
-                    <line
-                        x1={pendingX1}
-                        y1={pendingY1}
-                        x2={pendingGeo.lineEnd.x}
-                        y2={pendingGeo.lineEnd.y}
-                        stroke="#94A3B8"
-                        strokeWidth={2}
-                        strokeDasharray="6 4"
-                        strokeLinecap="round"
-                    />
-                    <polygon
-                        points={pendingGeo.arrowPts}
-                        fill="#94A3B8"
-                        stroke="#94A3B8"
-                        strokeWidth={1}
-                    />
+                    {(() => {
+                        const shortGhost = ghostPts.map((p) => ({
+                            x: (p.x / 100) * imageWidth,
+                            y: (p.y / 100) * imageHeight,
+                        }));
+                        shortGhost[shortGhost.length - 1] = ghostHead.lineEnd;
+                        const shortPtStr = shortGhost
+                            .map((p) => `${p.x},${p.y}`)
+                            .join(" ");
+                        return (
+                            <>
+                                <polyline
+                                    points={shortPtStr}
+                                    fill="none"
+                                    stroke="#94A3B8"
+                                    strokeWidth={2}
+                                    strokeDasharray="6 4"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                />
+                                <polygon
+                                    points={ghostHead.arrowPts}
+                                    fill="#94A3B8"
+                                    stroke="#94A3B8"
+                                    strokeWidth={1}
+                                />
+                            </>
+                        );
+                    })()}
                 </g>
             )}
         </svg>
@@ -238,11 +272,11 @@ export function ArrowLayer({
 ArrowLayer.propTypes = {
     imageWidth: PropTypes.number.isRequired,
     imageHeight: PropTypes.number.isRequired,
-    pendingArrowStart: PropTypes.object,
+    arrowPoints: PropTypes.array,
     arrowCursorPos: PropTypes.object,
 };
 
 ArrowLayer.defaultProps = {
-    pendingArrowStart: null,
+    arrowPoints: [],
     arrowCursorPos: null,
 };

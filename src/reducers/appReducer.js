@@ -155,17 +155,6 @@ function updateActiveNiveau(state, fn) {
     };
 }
 
-/**
- * Prochain numéro auto pour les items numérotés (flèches, marqueurs photo).
- * @param {Array} legendItems
- * @returns {number}
- */
-function nextNumero(legendItems) {
-    const nums = legendItems
-        .filter((i) => i.numero != null)
-        .map((i) => i.numero);
-    return nums.length === 0 ? 1 : Math.max(...nums) + 1;
-}
 
 /**
  * Reducer pur — aucun effet de bord
@@ -494,9 +483,6 @@ export function appReducer(state, action) {
                         rotation: 0,
                         opacity: 1,
                         zIndex: n.legendItems.length + 1,
-                        numero:
-                            payload.numero ??
-                            nextNumero(n.legendItems),
                         ...payload,
                         id: crypto.randomUUID(),
                     },
@@ -535,7 +521,6 @@ export function appReducer(state, action) {
                         id: crypto.randomUUID(),
                         x: src.x != null ? src.x + 2 : undefined,
                         y: src.y != null ? src.y + 2 : undefined,
-                        numero: nextNumero(n.legendItems),
                     },
                 ],
             }));

@@ -1,7 +1,8 @@
 /**
  * @fileoverview Barre latérale droite — outils du module Plan des Niveaux.
- * ZMS polygonaux, flèches d'accès/escalier, marqueurs photo, annotations.
+ * ZMS polygonaux, flèches (polylignes), photos planche, annotations.
  */
+import { useRef, useCallback } from "react";
 import PropTypes from "prop-types";
 import { useApp } from "../../hooks/useApp";
 import {
@@ -64,8 +65,8 @@ function ActiveToolBanner({ tool, symbolKey, onCancel }) {
         hint = "Clic sur le 1er point ou double-clic pour terminer";
     } else if (isArrow) {
         icon = "↗";
-        message = "1er clic : départ — 2e clic : arrivée";
-        hint = "Appuyez sur Échap pour annuler";
+        message = "Cliquez pour ajouter des points";
+        hint = "Double-clic pour terminer la flèche";
     }
 
     const bg = isDraw
@@ -117,15 +118,56 @@ ActiveToolBanner.defaultProps = { symbolKey: null };
 export function NiveauxToolbar() {
     const { state, actions } = useApp();
     const { selectedTool, selectedSymbolKey } = state.ui;
+    const photoInputRef = useRef(null);
 
     const activeNiveau = state.planNiveaux.niveaux.find(
         (n) => n.id === state.planNiveaux.activeNiveauId
     );
     const rotation = activeNiveau?.rotation ?? 0;
 
+    const handlePhotoFileSelect = useCallback(
+        async (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            e.target.value = "";
+
+            // Lire le fichier une seule fois pour dimensions et stockage
+            const src = await new Promise((resolve) => {
+                const fr = new FileReader();
+                fr.onload = (ev) => resolve(ev.target.result);
+                fr.readAsDataURL(file);
+            });
+
+            const img = await new Promise((resolve) => {
+                const i = new Image();
+                i.onload = () => resolve(i);
+                i.src = src;
+            });
+
+            const aspectRatio = img.naturalHeight / img.naturalWidth;
+            const photoId = actions.addNiveauPhotoFromDataUrl(file.name, src);
+
+            // Placer la photo à droite du plan d'intervention
+            actions.addNiveauLegendItem("photo", {
+                photoId,
+                x: 112,
+                y: 5,
+                widthPct: 28,
+                aspectRatio,
+            });
+        },
+        [actions]
+    );
+
     const handleSelectSymbol = (key) => {
         const symbol = getNiveauSymbolByKey(key);
         if (!symbol) return;
+
+        if (symbol.type === NIVEAUX_ELEMENT_TYPES.PHOTO) {
+            photoInputRef.current?.click();
+            return;
+        }
+
         actions.selectSymbol(key);
         if (symbol.type === NIVEAUX_ELEMENT_TYPES.ZMS_ZONE) {
             actions.setTool("draw");
@@ -241,6 +283,17 @@ export function NiveauxToolbar() {
                     onCancel={handleCancel}
                 />
             </div>
+
+            {/* Input fichier caché pour les photos */}
+            <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoFileSelect}
+                className="sr-only"
+                aria-hidden="true"
+                tabIndex={-1}
+            />
         </aside>
     );
 }

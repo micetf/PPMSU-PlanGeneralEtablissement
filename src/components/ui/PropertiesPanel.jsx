@@ -1,7 +1,6 @@
 /**
  * @fileoverview Panneau de propriétés de l'élément sélectionné (module-aware)
  */
-import { useRef } from "react";
 import PropTypes from "prop-types";
 import { useApp } from "../../hooks/useApp";
 import { useSelectedItem } from "../../hooks/useSelectedItem";
@@ -121,6 +120,32 @@ RotationControl.propTypes = {
     onChange: PropTypes.func.isRequired,
 };
 
+function ColorPicker({ label, value, onChange }) {
+    return (
+        <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">
+                {label}
+            </span>
+            <div className="flex items-center gap-2">
+                <input
+                    type="color"
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    className="w-8 h-8 rounded cursor-pointer border border-slate-200"
+                    aria-label={label}
+                />
+                <span className="text-xs text-slate-500 font-mono">{value}</span>
+            </div>
+        </div>
+    );
+}
+
+ColorPicker.propTypes = {
+    label: PropTypes.string.isRequired,
+    value: PropTypes.string.isRequired,
+    onChange: PropTypes.func.isRequired,
+};
+
 // ── Plan Général — Légende ────────────────────────────────────────────────────
 
 function LegendItemProperties({ item, symbol, onUpdate }) {
@@ -209,31 +234,11 @@ function NiveauZMSProperties({ item, onUpdate }) {
     const update = (changes) => onUpdate(item.id, changes);
     return (
         <div className="flex flex-col gap-3">
-            <TextField
-                label="Nom de la zone"
-                value={item.nom ?? "Zone de mise en sûreté"}
-                placeholder="ex : Zone A - RDC"
-                onChange={(v) => update({ nom: v })}
+            <ColorPicker
+                label="Couleur du périmètre"
+                value={item.color ?? "#43729D"}
+                onChange={(v) => update({ color: v, fillColor: v })}
             />
-            <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">
-                    Couleur du périmètre
-                </span>
-                <div className="flex items-center gap-2">
-                    <input
-                        type="color"
-                        value={item.color ?? "#43729D"}
-                        onChange={(e) =>
-                            update({ color: e.target.value, fillColor: e.target.value })
-                        }
-                        className="w-8 h-8 rounded cursor-pointer border border-slate-200"
-                        aria-label="Couleur du périmètre"
-                    />
-                    <span className="text-xs text-slate-500 font-mono">
-                        {item.color ?? "#43729D"}
-                    </span>
-                </div>
-            </div>
             <NumberField
                 label="Épaisseur du périmètre"
                 value={item.strokeWidth ?? 3}
@@ -263,93 +268,25 @@ NiveauZMSProperties.propTypes = {
     onUpdate: PropTypes.func.isRequired,
 };
 
-// ── Plan des Niveaux — Photo associée ────────────────────────────────────────
+// ── Plan des Niveaux — Flèche ────────────────────────────────────────────────
 
-function PhotoAssociee({ photoId, activeNiveau, onUpdate, onRemove }) {
-    const fileInputRef = useRef(null);
-    const { actions } = useApp();
-    const photo = activeNiveau?.photos.find((p) => p.id === photoId);
-
-    const handleUpload = async (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        const newPhotoId = await actions.addNiveauPhoto(file);
-        onUpdate({ photoId: newPhotoId });
-        e.target.value = "";
-    };
-
-    return (
-        <div className="flex flex-col gap-1.5">
-            <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">
-                Photo associée
-            </span>
-            {photo ? (
-                <div className="flex flex-col gap-1">
-                    <img
-                        src={photo.src}
-                        alt={photo.fileName}
-                        className="w-full rounded-lg object-cover max-h-28 border border-slate-200"
-                    />
-                    <p className="text-[10px] text-slate-400 truncate">
-                        {photo.fileName}
-                    </p>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            actions.removeNiveauPhoto(photoId);
-                            onRemove();
-                        }}
-                        className="text-[10px] text-red-400 hover:text-red-600 text-left"
-                    >
-                        Supprimer la photo
-                    </button>
-                </div>
-            ) : (
-                <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full py-2 rounded-lg border border-dashed border-slate-300
-                               text-[10px] text-slate-400 hover:border-blue-300 hover:text-blue-500
-                               transition-colors focus:outline-none"
-                >
-                    📷 Associer une photo
-                </button>
-            )}
-            <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleUpload}
-                className="sr-only"
-                aria-hidden="true"
-                tabIndex={-1}
-            />
-        </div>
-    );
-}
-
-PhotoAssociee.propTypes = {
-    photoId: PropTypes.string,
-    activeNiveau: PropTypes.object,
-    onUpdate: PropTypes.func.isRequired,
-    onRemove: PropTypes.func.isRequired,
-};
-PhotoAssociee.defaultProps = { photoId: null, activeNiveau: null };
-
-// ── Plan des Niveaux — Panneaux ───────────────────────────────────────────────
-
-function FlecheProperties({ item, onUpdate, activeNiveau }) {
+function FlecheProperties({ item, onUpdate }) {
     const update = (changes) => onUpdate(item.id, changes);
     return (
         <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wide shrink-0">
-                    Numéro
-                </span>
-                <span className="text-sm font-bold text-slate-700">
-                    {item.numero ?? "—"}
-                </span>
-            </div>
+            <ColorPicker
+                label="Couleur"
+                value={item.color ?? "#EA580C"}
+                onChange={(v) => update({ color: v })}
+            />
+            <NumberField
+                label="Épaisseur"
+                value={item.strokeWidth ?? 3}
+                min={1}
+                max={20}
+                onChange={(v) => update({ strokeWidth: v })}
+                unit="px"
+            />
             <SliderField
                 label="Opacité"
                 value={item.opacity ?? 1}
@@ -358,12 +295,11 @@ function FlecheProperties({ item, onUpdate, activeNiveau }) {
                 step={0.05}
                 onChange={(v) => update({ opacity: v })}
             />
-            <PhotoAssociee
-                photoId={item.photoId}
-                activeNiveau={activeNiveau}
-                onUpdate={update}
-                onRemove={() => update({ photoId: null })}
-            />
+            {item.points && (
+                <p className="text-[10px] text-slate-400">
+                    {item.points.length} sommet{item.points.length > 1 ? "s" : ""}
+                </p>
+            )}
         </div>
     );
 }
@@ -371,27 +307,26 @@ function FlecheProperties({ item, onUpdate, activeNiveau }) {
 FlecheProperties.propTypes = {
     item: PropTypes.object.isRequired,
     onUpdate: PropTypes.func.isRequired,
-    activeNiveau: PropTypes.object,
 };
-FlecheProperties.defaultProps = { activeNiveau: null };
 
-function MarqueurPhotoProperties({ item, onUpdate, activeNiveau }) {
+// ── Plan des Niveaux — Photo planche ─────────────────────────────────────────
+
+function PhotoProperties({ item, onUpdate }) {
     const update = (changes) => onUpdate(item.id, changes);
     return (
         <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wide shrink-0">
-                    Numéro
-                </span>
-                <span className="text-sm font-bold text-slate-700">
-                    {item.numero ?? "—"}
-                </span>
-            </div>
-            <TextField
-                label="Étiquette"
-                value={item.label ?? ""}
-                placeholder="ex : Escalier principal"
-                onChange={(v) => update({ label: v })}
+            <SliderField
+                label="Taille"
+                value={item.widthPct ?? 25}
+                min={5}
+                max={80}
+                step={1}
+                unit="%"
+                onChange={(v) => update({ widthPct: v })}
+            />
+            <RotationControl
+                value={item.rotation ?? 0}
+                onChange={(v) => update({ rotation: v })}
             />
             <SliderField
                 label="Opacité"
@@ -401,22 +336,16 @@ function MarqueurPhotoProperties({ item, onUpdate, activeNiveau }) {
                 step={0.05}
                 onChange={(v) => update({ opacity: v })}
             />
-            <PhotoAssociee
-                photoId={item.photoId}
-                activeNiveau={activeNiveau}
-                onUpdate={update}
-                onRemove={() => update({ photoId: null })}
-            />
         </div>
     );
 }
 
-MarqueurPhotoProperties.propTypes = {
+PhotoProperties.propTypes = {
     item: PropTypes.object.isRequired,
     onUpdate: PropTypes.func.isRequired,
-    activeNiveau: PropTypes.object,
 };
-MarqueurPhotoProperties.defaultProps = { activeNiveau: null };
+
+// ── Plan des Niveaux — Annotation texte ──────────────────────────────────────
 
 function NiveauTexteProperties({ item, onUpdate }) {
     const update = (changes) => onUpdate(item.id, changes);
@@ -430,12 +359,16 @@ function NiveauTexteProperties({ item, onUpdate }) {
             />
             <NumberField
                 label="Taille de police"
-                value={item.width ?? 14}
+                value={item.fontSize ?? item.width ?? 14}
                 min={10}
                 max={96}
                 step={2}
                 unit="px"
-                onChange={(w) => update({ width: w, height: w })}
+                onChange={(v) => update({ fontSize: v })}
+            />
+            <RotationControl
+                value={item.rotation ?? 0}
+                onChange={(v) => update({ rotation: v })}
             />
             <SliderField
                 label="Opacité"
@@ -464,12 +397,6 @@ export function PropertiesPanel() {
     if (!item) return null;
 
     const isNiveaux = moduleActif === "planNiveaux";
-
-    const activeNiveau = isNiveaux
-        ? state.planNiveaux.niveaux.find(
-              (n) => n.id === state.planNiveaux.activeNiveauId
-          )
-        : null;
 
     const handleUpdateLegend = (id, changes) =>
         isNiveaux
@@ -504,14 +431,16 @@ export function PropertiesPanel() {
 
     const panelLabel = isNiveaux
         ? item.type === NIVEAUX_ELEMENT_TYPES.FLECHE
-            ? `Flèche n°${item.numero ?? ""}`
-            : item.type === NIVEAUX_ELEMENT_TYPES.MARQUEUR_PHOTO
-              ? `Photo n°${item.numero ?? ""}`
+            ? "Flèche"
+            : item.type === NIVEAUX_ELEMENT_TYPES.PHOTO
+              ? "Photo"
               : symbol?.label ?? "Élément"
         : symbol?.label ?? "Élément";
 
     const canDuplicate =
-        type === "legend" && item.type !== NIVEAUX_ELEMENT_TYPES.FLECHE;
+        type === "legend" &&
+        item.type !== NIVEAUX_ELEMENT_TYPES.FLECHE &&
+        item.type !== NIVEAUX_ELEMENT_TYPES.PHOTO;
 
     return (
         <aside
@@ -561,15 +490,13 @@ export function PropertiesPanel() {
                         <FlecheProperties
                             item={item}
                             onUpdate={handleUpdateLegend}
-                            activeNiveau={activeNiveau}
                         />
                     )}
                 {isNiveaux && type === "legend" &&
-                    item.type === NIVEAUX_ELEMENT_TYPES.MARQUEUR_PHOTO && (
-                        <MarqueurPhotoProperties
+                    item.type === NIVEAUX_ELEMENT_TYPES.PHOTO && (
+                        <PhotoProperties
                             item={item}
                             onUpdate={handleUpdateLegend}
-                            activeNiveau={activeNiveau}
                         />
                     )}
                 {isNiveaux && type === "legend" &&

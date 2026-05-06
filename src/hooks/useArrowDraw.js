@@ -1,17 +1,19 @@
 /**
- * @fileoverview Hook de dessin des flèches (accès / escalier) en 2 clics.
- * Premier clic : pose le point de départ.
- * Deuxième clic : finalise la flèche et la crée dans l'état.
+ * @fileoverview Hook de dessin des flèches (polyligne multi-clic).
+ * Chaque clic ajoute un sommet. Double-clic finalise la polyligne.
+ * Utilise un ref pour accès synchrone aux points lors du double-clic
+ * (le navigateur déclenche click×2 puis dblclick dans cet ordre).
  */
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useApp } from "./useApp";
 import { getNiveauSymbolByKey } from "../constants/niveauxLegend";
 import { eventToNiveauPct } from "../utils/niveauCoords";
 
 export function useArrowDraw() {
     const { state, actions } = useApp();
-    const [pendingStart, setPendingStart] = useState(null); // { x, y } % image
-    const [cursorPos, setCursorPos] = useState(null);       // { x, y } % image
+    const [points, setPoints] = useState([]);
+    const pointsRef = useRef([]);
+    const [cursorPos, setCursorPos] = useState(null);
 
     const activeNiveau = state.planNiveaux.niveaux.find(
         (n) => n.id === state.planNiveaux.activeNiveauId
@@ -38,41 +40,53 @@ export function useArrowDraw() {
             const { selectedTool, selectedSymbolKey } = state.ui;
             if (selectedTool !== "arrow" || !selectedSymbolKey) return;
 
-            const symbol = getNiveauSymbolByKey(selectedSymbolKey);
-            if (!symbol) return;
-
             const point = toImagePct(e);
             if (!point) return;
 
-            if (!pendingStart) {
-                // Premier clic : mémorise le point de départ
-                setPendingStart(point);
-            } else {
-                // Deuxième clic : crée la flèche
-                actions.addNiveauLegendItem(selectedSymbolKey, {
-                    startX: pendingStart.x,
-                    startY: pendingStart.y,
-                    endX: point.x,
-                    endY: point.y,
-                });
-                setPendingStart(null);
-                setCursorPos(null);
-            }
+            const next = [...pointsRef.current, point];
+            pointsRef.current = next;
+            setPoints(next);
         },
-        [state.ui, pendingStart, toImagePct, actions]
+        [state.ui, toImagePct]
     );
 
-    // Réinitialise si on change d'outil
+    const handleCanvasDblClick = useCallback(
+        () => {
+            const { selectedTool, selectedSymbolKey } = state.ui;
+            if (selectedTool !== "arrow" || !selectedSymbolKey) return;
+
+            // Le navigateur a déjà déclenché click×2 avant dblclick,
+            // donc pointsRef a 2 points en trop. On retire le dernier.
+            const finalPoints = pointsRef.current.slice(0, -1);
+
+            pointsRef.current = [];
+            setPoints([]);
+            setCursorPos(null);
+
+            if (finalPoints.length < 2) return;
+
+            const symbol = getNiveauSymbolByKey(selectedSymbolKey);
+            if (!symbol) return;
+
+            actions.addNiveauLegendItem(selectedSymbolKey, {
+                points: finalPoints,
+            });
+        },
+        [state.ui, actions]
+    );
+
     const reset = useCallback(() => {
-        setPendingStart(null);
+        pointsRef.current = [];
+        setPoints([]);
         setCursorPos(null);
     }, []);
 
     return {
-        pendingStart,
-        cursorPos,
+        arrowPoints: points,
+        arrowCursorPos: cursorPos,
         handleCanvasClick,
         handleCanvasMouseMove,
+        handleCanvasDblClick,
         reset,
     };
 }

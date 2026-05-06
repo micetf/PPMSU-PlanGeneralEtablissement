@@ -1,18 +1,16 @@
 /**
- * @fileoverview Couche SVG — marqueurs photo et annotations texte du niveau actif.
+ * @fileoverview Couche SVG — photos planche et annotations texte du niveau actif.
  * Les éléments sont sélectionnables et déplaçables en mode select.
  */
 import { useRef } from "react";
 import PropTypes from "prop-types";
 import { useApp } from "../../hooks/useApp";
 import { useDrag } from "../../hooks/useDrag";
-import { getNiveauSymbolByKey, NIVEAUX_ELEMENT_TYPES } from "../../constants/niveauxLegend";
+import { NIVEAUX_ELEMENT_TYPES } from "../../constants/niveauxLegend";
 
-const MARKER_RADIUS = 12;
-
-function MarqueurPhoto({ item, imageWidth, imageHeight }) {
+/** Photo autonome déposée sur la planche (peut être hors des limites de l'image) */
+function PhotoItem({ item, imageWidth, imageHeight }) {
     const { state, actions } = useApp();
-    const symbol = getNiveauSymbolByKey(item.symbolKey);
     const isSelected = state.ui.selectedItemId === item.id;
     const { zoom, selectedTool } = state.ui;
     const dragOrigin = useRef({ x: item.x, y: item.y });
@@ -20,26 +18,15 @@ function MarqueurPhoto({ item, imageWidth, imageHeight }) {
     const activeNiveau = state.planNiveaux.niveaux.find(
         (n) => n.id === state.planNiveaux.activeNiveauId
     );
+    const photo = activeNiveau?.photos.find((p) => p.id === item.photoId);
 
     const { onDragStart } = useDrag({
         onMove: (dx, dy) => {
             if (!activeNiveau) return;
             const { naturalWidth, naturalHeight } = activeNiveau.image;
             actions.updateNiveauLegendItem(item.id, {
-                x: Math.max(
-                    0,
-                    Math.min(
-                        100,
-                        dragOrigin.current.x + (dx / zoom / naturalWidth) * 100
-                    )
-                ),
-                y: Math.max(
-                    0,
-                    Math.min(
-                        100,
-                        dragOrigin.current.y + (dy / zoom / naturalHeight) * 100
-                    )
-                ),
+                x: dragOrigin.current.x + (dx / zoom / naturalWidth) * 100,
+                y: dragOrigin.current.y + (dy / zoom / naturalHeight) * 100,
             });
         },
     });
@@ -52,79 +39,62 @@ function MarqueurPhoto({ item, imageWidth, imageHeight }) {
         onDragStart(e);
     };
 
+    if (!photo?.src) return null;
+
     const cx = (item.x / 100) * imageWidth;
     const cy = (item.y / 100) * imageHeight;
-    const color = symbol?.color ?? "#16A34A";
+    const renderWidth = ((item.widthPct ?? 25) / 100) * imageWidth;
+    const renderHeight = renderWidth * (item.aspectRatio ?? 1);
+    const rotation = item.rotation ?? 0;
     const opacity = item.opacity ?? 1;
 
     return (
         <g
-            transform={`translate(${cx}, ${cy})`}
+            transform={`translate(${cx}, ${cy}) rotate(${rotation})`}
+            opacity={opacity}
             style={{
                 cursor: selectedTool === "select" ? "grab" : "default",
                 pointerEvents: "auto",
             }}
             onMouseDown={handleMouseDown}
             onClick={(e) => e.stopPropagation()}
-            role="button"
-            aria-label={`Marqueur photo ${item.numero}`}
-            aria-pressed={isSelected}
         >
             {isSelected && (
-                <circle
-                    r={MARKER_RADIUS + 5}
+                <rect
+                    x={-renderWidth / 2 - 5}
+                    y={-renderHeight / 2 - 5}
+                    width={renderWidth + 10}
+                    height={renderHeight + 10}
                     fill="none"
                     stroke="#3B82F6"
                     strokeWidth={2}
-                    strokeDasharray="4 2"
+                    strokeDasharray="6 3"
+                    rx={2}
+                    style={{ pointerEvents: "none" }}
                 />
             )}
-            <circle
-                r={MARKER_RADIUS}
-                fill={color}
-                fillOpacity={opacity}
-                stroke="white"
-                strokeWidth={1.5}
+            <image
+                href={photo.src}
+                x={-renderWidth / 2}
+                y={-renderHeight / 2}
+                width={renderWidth}
+                height={renderHeight}
+                preserveAspectRatio="xMidYMid meet"
+                style={{ pointerEvents: "none" }}
             />
-            <text
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fontSize="10"
-                fontWeight="bold"
-                fill="white"
-                style={{ pointerEvents: "none", userSelect: "none" }}
-            >
-                {item.numero}
-            </text>
-            {item.label && (
-                <text
-                    y={MARKER_RADIUS + 12}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fontSize="10"
-                    fontWeight="bold"
-                    fill={color}
-                    stroke="white"
-                    strokeWidth={2}
-                    paintOrder="stroke"
-                    style={{ pointerEvents: "none", userSelect: "none" }}
-                >
-                    {item.label}
-                </text>
-            )}
         </g>
     );
 }
 
-MarqueurPhoto.propTypes = {
+PhotoItem.propTypes = {
     item: PropTypes.object.isRequired,
     imageWidth: PropTypes.number.isRequired,
     imageHeight: PropTypes.number.isRequired,
 };
 
+/** Annotation texte libre (peut être pivotée) */
 function TexteItem({ item, imageWidth, imageHeight }) {
     const { state, actions } = useApp();
-    const symbol = getNiveauSymbolByKey(item.symbolKey);
     const isSelected = state.ui.selectedItemId === item.id;
     const { zoom, selectedTool } = state.ui;
     const dragOrigin = useRef({ x: item.x, y: item.y });
@@ -139,18 +109,12 @@ function TexteItem({ item, imageWidth, imageHeight }) {
             const { naturalWidth, naturalHeight } = activeNiveau.image;
             actions.updateNiveauLegendItem(item.id, {
                 x: Math.max(
-                    0,
-                    Math.min(
-                        100,
-                        dragOrigin.current.x + (dx / zoom / naturalWidth) * 100
-                    )
+                    -20,
+                    Math.min(120, dragOrigin.current.x + (dx / zoom / naturalWidth) * 100)
                 ),
                 y: Math.max(
-                    0,
-                    Math.min(
-                        100,
-                        dragOrigin.current.y + (dy / zoom / naturalHeight) * 100
-                    )
+                    -20,
+                    Math.min(120, dragOrigin.current.y + (dy / zoom / naturalHeight) * 100)
                 ),
             });
         },
@@ -166,13 +130,14 @@ function TexteItem({ item, imageWidth, imageHeight }) {
 
     const x = (item.x / 100) * imageWidth;
     const y = (item.y / 100) * imageHeight;
-    const color = symbol?.color ?? "#FFFF00";
-    const fontSize = item.fontSize ?? 14;
-    const text = item.label || symbol?.label;
+    const color = item.color ?? "#FFFF00";
+    const fontSize = item.fontSize ?? item.width ?? 14;
+    const text = item.label || "Annotation";
+    const rotation = item.rotation ?? 0;
 
     return (
         <g
-            transform={`translate(${x}, ${y})`}
+            transform={`translate(${x}, ${y}) rotate(${rotation})`}
             style={{
                 cursor: selectedTool === "select" ? "grab" : "default",
                 pointerEvents: "auto",
@@ -180,11 +145,18 @@ function TexteItem({ item, imageWidth, imageHeight }) {
             onMouseDown={handleMouseDown}
             onClick={(e) => e.stopPropagation()}
             role="button"
-            aria-label={text || "Annotation"}
+            aria-label={text}
             aria-pressed={isSelected}
         >
             {isSelected && (
-                <circle r={fontSize} fill="none" stroke="#3B82F6" strokeWidth={1.5} />
+                <circle
+                    r={fontSize * 1.6}
+                    fill="none"
+                    stroke="#3B82F6"
+                    strokeWidth={1.5}
+                    strokeDasharray="4 2"
+                    style={{ pointerEvents: "none" }}
+                />
             )}
             <text
                 textAnchor="middle"
@@ -219,7 +191,7 @@ export function NiveauSymbolLayer({ imageWidth, imageHeight }) {
 
     const items = activeNiveau.legendItems.filter(
         (item) =>
-            item.type === NIVEAUX_ELEMENT_TYPES.MARQUEUR_PHOTO ||
+            item.type === NIVEAUX_ELEMENT_TYPES.PHOTO ||
             item.type === NIVEAUX_ELEMENT_TYPES.TEXTE
     );
 
@@ -235,9 +207,9 @@ export function NiveauSymbolLayer({ imageWidth, imageHeight }) {
             style={{ pointerEvents: "none" }}
         >
             {items.map((item) => {
-                if (item.type === NIVEAUX_ELEMENT_TYPES.MARQUEUR_PHOTO) {
+                if (item.type === NIVEAUX_ELEMENT_TYPES.PHOTO) {
                     return (
-                        <MarqueurPhoto
+                        <PhotoItem
                             key={item.id}
                             item={item}
                             imageWidth={imageWidth}

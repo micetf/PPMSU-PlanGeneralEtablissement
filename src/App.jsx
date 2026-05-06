@@ -102,10 +102,11 @@ function NiveauWorkspaceLayout() {
     } = useNiveauContourDraw();
 
     const {
-        pendingStart,
-        cursorPos: arrowCursor,
+        arrowPoints,
+        arrowCursorPos,
         handleCanvasClick: arrowClick,
         handleCanvasMouseMove: arrowMouseMove,
+        handleCanvasDblClick: arrowDblClick,
     } = useArrowDraw();
 
     const handleCanvasClick = (e) => {
@@ -147,6 +148,7 @@ function NiveauWorkspaceLayout() {
     const handleDblClick = (e) => {
         const { selectedTool } = state.ui;
         if (selectedTool === "draw") niveauContourDblClick(e);
+        else if (selectedTool === "arrow") arrowDblClick(e);
     };
 
     return (
@@ -158,8 +160,8 @@ function NiveauWorkspaceLayout() {
                 <div className="relative flex-1 min-w-0">
                     <NiveauWorkspaceCanvas
                         cursorPoint={contourCursor}
-                        pendingArrowStart={pendingStart}
-                        arrowCursorPos={arrowCursor}
+                        arrowPoints={arrowPoints}
+                        arrowCursorPos={arrowCursorPos}
                         onMouseMove={handleMouseMove}
                         onCanvasClick={handleCanvasClick}
                         onDblClick={handleDblClick}

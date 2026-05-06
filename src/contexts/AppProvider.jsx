@@ -184,7 +184,13 @@ export function AppProvider({ children }) {
         if (!symbol) return;
         dispatch({
             type: ACTION_TYPES.PN_ADD_LEGEND_ITEM,
-            payload: { symbolKey, type: symbol.type, ...coords },
+            payload: {
+                symbolKey,
+                type: symbol.type,
+                color: symbol.color,
+                strokeWidth: symbol.strokeWidth,
+                ...coords,
+            },
         });
     }, []);
 
@@ -223,7 +229,6 @@ export function AppProvider({ children }) {
             payload: {
                 symbolKey,
                 firstPoint,
-                nom: symbol.label ?? "Zone de mise en sûreté",
                 color: symbol.color,
                 strokeWidth: symbol.strokeWidth ?? 3,
                 strokeStyle: symbol.strokeStyle ?? "solid",
@@ -295,6 +300,15 @@ export function AppProvider({ children }) {
             dispatch({ type: ACTION_TYPES.PN_REMOVE_PHOTO, payload: id }),
         []
     );
+
+    const addNiveauPhotoFromDataUrl = useCallback((fileName, src) => {
+        const id = crypto.randomUUID();
+        dispatch({
+            type: ACTION_TYPES.PN_ADD_PHOTO,
+            payload: { id, fileName, src },
+        });
+        return id;
+    }, []);
 
     const setNiveauRotation = useCallback(
         (rotation) =>
@@ -577,6 +591,7 @@ export function AppProvider({ children }) {
         removeNiveauContourPath,
         updateNiveauContourPoint,
         addNiveauPhoto,
+        addNiveauPhotoFromDataUrl,
         removeNiveauPhoto,
         setNiveauRotation,
         // UI

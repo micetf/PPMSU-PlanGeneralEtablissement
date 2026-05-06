@@ -81,6 +81,7 @@ function ContourPath({
     onSelect,
     onUpdatePoint,
     selectable,
+    showLabel,
 }) {
     const pts = path.points;
     if (pts.length === 0) return null;
@@ -208,8 +209,9 @@ function ContourPath({
                 </>
             )}
 
-            {/* Label centré sur zone fermée */}
-            {path.closed &&
+            {/* Label centré sur zone fermée (Plan Général uniquement) */}
+            {showLabel &&
+                path.closed &&
                 isZone &&
                 pts.length >= 3 &&
                 (() => {
@@ -257,6 +259,7 @@ ContourPath.defaultProps = {
     onSelect: () => {},
     onUpdatePoint: () => {},
     selectable: false,
+    showLabel: true,
 };
 
 export function ContourLayer({
@@ -265,6 +268,7 @@ export function ContourLayer({
     cursorPoint,
     contourPaths,
     onUpdatePoint,
+    showLabel,
 }) {
     const { state, actions } = useApp();
     if (!contourPaths.length) return null;
@@ -294,6 +298,7 @@ export function ContourLayer({
                     onSelect={(id) => actions.selectItem(id)}
                     onUpdatePoint={onUpdatePoint}
                     selectable={selectable}
+                    showLabel={showLabel}
                 />
             ))}
         </svg>
@@ -306,6 +311,7 @@ ContourLayer.propTypes = {
     cursorPoint: PropTypes.object,
     contourPaths: PropTypes.array.isRequired,
     onUpdatePoint: PropTypes.func.isRequired,
+    showLabel: PropTypes.bool,
 };
 
-ContourLayer.defaultProps = { cursorPoint: null };
+ContourLayer.defaultProps = { cursorPoint: null, showLabel: true };
