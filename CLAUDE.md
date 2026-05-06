@@ -29,12 +29,14 @@ All state lives in a single `useReducer` store:
 **State shape** (`AppState`):
 
 ```
-state.project    — id, name, schoolName, timestamps
-state.image      — src (base64), naturalWidth, naturalHeight, fileName
-state.legendItems — array of placed symbols
-state.contourPaths — array of polygonal overlays
-state.ui         — moduleActif, selectedTool, selectedSymbolKey, selectedItemId,
-                   activeDrawingPathId, zoom, panOffset, isDirty
+state.project      — id, name, schoolName, timestamps
+state.planGeneral  — { image: { src, naturalWidth, naturalHeight, fileName },
+                       legendItems: [], contourPaths: [] }
+state.planNiveaux  — { niveaux: [], activeNiveauId: null }
+                     Each niveau: { id, nom, rotation, image, legendItems, contourPaths, photos[] }
+                     Each photo:  { id, fileName, src (base64) }
+state.ui           — moduleActif, selectedTool, selectedSymbolKey, selectedItemId,
+                     activeDrawingPathId, zoom, panOffset, isDirty
 ```
 
 ### Internal routing
@@ -49,7 +51,7 @@ Symbol `width`/`height` are stored in **native export pixels**. Display size = `
 
 ### Workspace rendering layers
 
-`WorkspaceCanvas` → absolute-positioned div scaled by `zoom`/`panOffset`:
+**Plan Général** — `WorkspaceCanvas` → absolute-positioned div scaled by `zoom`/`panOffset`:
 
 1. `<img>` — aerial background
 2. `<ContourLayer>` — SVG overlay for polygonal contours
@@ -57,9 +59,21 @@ Symbol `width`/`height` are stored in **native export pixels**. Display size = `
 
 PNG export (`src/utils/exportCanvas.js`) replicates the same render using the Canvas 2D API at native resolution — it does not capture the DOM.
 
+**Plan des Niveaux** — `NiveauWorkspaceCanvas` → same zoom/pan pattern:
+
+1. `<img>` — floor plan background (per-niveau, with optional rotation)
+2. `<ContourLayer showLabel={false}>` — ZMS polygonal overlays
+3. `<ArrowLayer layerFilter="back">` — arrows explicitly placed below photos
+4. `<NiveauSymbolLayer>` — photos planche (SVG `<image>`) + text annotations
+5. `<ArrowLayer layerFilter="front">` — arrows above photos (default)
+
+PNG export (`src/utils/exportNiveau.js`) uses the same two-pass order; canvas is expanded to fit photos and arrow points that fall outside image bounds. Coordinates converted via `src/utils/niveauCoords.js`.
+
 ### Symbol catalogue
 
-`src/constants/ppmsLegend.js` is the single source of truth: `PPMS_SYMBOLS`, `ELEMENT_TYPES`, `PPMS_CATEGORIES`, `CATEGORY_LABELS`, `IMAGE_NATIVE_SIZES`. All symbol images live in `public/symbols/`. `symbolUrl(fileName)` in `src/utils/assetPath.js` prefixes `import.meta.env.BASE_URL` so paths work on both dev (root) and production (sub-directory).
+**Plan Général** — `src/constants/ppmsLegend.js` is the single source of truth: `PPMS_SYMBOLS`, `ELEMENT_TYPES`, `PPMS_CATEGORIES`, `CATEGORY_LABELS`, `IMAGE_NATIVE_SIZES`. All symbol images live in `public/symbols/`. `symbolUrl(fileName)` in `src/utils/assetPath.js` prefixes `import.meta.env.BASE_URL` so paths work on both dev (root) and production (sub-directory).
+
+**Plan des Niveaux** — `src/constants/niveauxLegend.js`: `NIVEAUX_SYMBOLS`, `NIVEAUX_ELEMENT_TYPES` (`ZMS_ZONE`, `FLECHE`, `PHOTO`, `TEXTE`), `NIVEAUX_SYMBOLS_BY_CATEGORY`, `getNiveauSymbolByKey(key)`. Item data stored in niveau's `legendItems[]`; photo binaries stored in niveau's `photos[]` (base64, loaded via `actions.addNiveauPhotoFromDataUrl`).
 
 Element types that affect rendering:
 

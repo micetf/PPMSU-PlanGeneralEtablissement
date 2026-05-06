@@ -7,8 +7,9 @@ Unifié (PPMS), conforme au **fascicule 2** Eduscol.
 
 - **Plan Général de l'École** — légendage d'une vue aérienne selon la légende
   officielle du fascicule 2
-- **Plans des Niveaux** _(en développement)_ — annotation des plans
-  d'intervention par niveau de bâtiment : ZMS, accès, escaliers, photos
+- **Plans des Niveaux** — annotation des plans d'intervention par niveau de
+  bâtiment : zones ZMS polygonales, flèches de circulation multi-points, photos
+  planche et annotations texte, export PNG par niveau
 - **Coupures de Fluides** _(en développement)_ — annotation des photos des
   systèmes de coupure d'eau, gaz et électricité
 
@@ -22,6 +23,19 @@ Unifié (PPMS), conforme au **fascicule 2** Eduscol.
 - Sauvegarde locale (IndexedDB + localStorage)
 - Export du plan légendé en PNG à la résolution native
 - Export/import de projet au format .ppmsu (partage entre postes)
+
+## Fonctionnalités (module Plans des Niveaux)
+
+- Gestion de plusieurs niveaux de bâtiment (sidebar avec liste et navigation)
+- Chargement d'une image par niveau (JPG, PNG, WebP — 10 Mo max)
+- Tracé des zones ZMS (polygones colorés avec remplissage réglable)
+- Flèches de circulation multi-points (polyligne, double-clic pour terminer)
+- Photos planche : déposées librement hors du plan, redimensionnables, pivotables
+- Annotations texte libres (couleur, taille de police, rotation)
+- Positionnement des flèches au-dessus ou en dessous des photos
+- Panneau de propriétés glissable : couleur, épaisseur, opacité
+- Export PNG du niveau annoté (canvas étendu aux éléments hors image)
+- Sauvegarde locale intégrée au projet (même persistance que Plan Général)
 
 ## Stack technique
 
