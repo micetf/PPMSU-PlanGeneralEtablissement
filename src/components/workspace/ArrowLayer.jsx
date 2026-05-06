@@ -9,25 +9,25 @@ import { useApp } from "../../hooks/useApp";
 import { useDrag } from "../../hooks/useDrag";
 import { getNiveauSymbolByKey, NIVEAUX_ELEMENT_TYPES } from "../../constants/niveauxLegend";
 
-const ARROWHEAD_LEN = 14;
 const ARROWHEAD_ANGLE = Math.PI / 6;
-const ARROWHEAD_SHORTEN = ARROWHEAD_LEN * 0.75;
 
-function computeArrowhead(pts) {
+function computeArrowhead(pts, strokeWidth = 3) {
     if (pts.length < 2) return null;
+    const arrowLen = Math.max(14, strokeWidth * 4);
+    const shorten = arrowLen * 0.75;
     const last = pts[pts.length - 1];
     const prev = pts[pts.length - 2];
     const angle = Math.atan2(last.y - prev.y, last.x - prev.x);
     return {
         tip: last,
         lineEnd: {
-            x: last.x - ARROWHEAD_SHORTEN * Math.cos(angle),
-            y: last.y - ARROWHEAD_SHORTEN * Math.sin(angle),
+            x: last.x - shorten * Math.cos(angle),
+            y: last.y - shorten * Math.sin(angle),
         },
         arrowPts: [
             `${last.x},${last.y}`,
-            `${last.x - ARROWHEAD_LEN * Math.cos(angle - ARROWHEAD_ANGLE)},${last.y - ARROWHEAD_LEN * Math.sin(angle - ARROWHEAD_ANGLE)}`,
-            `${last.x - ARROWHEAD_LEN * Math.cos(angle + ARROWHEAD_ANGLE)},${last.y - ARROWHEAD_LEN * Math.sin(angle + ARROWHEAD_ANGLE)}`,
+            `${last.x - arrowLen * Math.cos(angle - ARROWHEAD_ANGLE)},${last.y - arrowLen * Math.sin(angle - ARROWHEAD_ANGLE)}`,
+            `${last.x - arrowLen * Math.cos(angle + ARROWHEAD_ANGLE)},${last.y - arrowLen * Math.sin(angle + ARROWHEAD_ANGLE)}`,
         ].join(" "),
     };
 }
@@ -83,7 +83,7 @@ function ArrowItem({ item, imageWidth, imageHeight }) {
 
     if (pts.length < 2) return null;
 
-    const head = computeArrowhead(pts);
+    const head = computeArrowhead(pts, strokeWidth);
 
     // Polyline raccourcie (sans le bout pour laisser place à la pointe)
     const shortPts = [...pts];

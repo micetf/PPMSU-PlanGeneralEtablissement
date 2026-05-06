@@ -59,6 +59,24 @@ function PhotoItem({ item, imageWidth, imageHeight }) {
             onMouseDown={handleMouseDown}
             onClick={(e) => e.stopPropagation()}
         >
+            {/* Zone de clic (doit précéder l'image pour être derrière) */}
+            <rect
+                x={-renderWidth / 2}
+                y={-renderHeight / 2}
+                width={renderWidth}
+                height={renderHeight}
+                fill="transparent"
+                stroke="none"
+            />
+            <image
+                href={photo.src}
+                x={-renderWidth / 2}
+                y={-renderHeight / 2}
+                width={renderWidth}
+                height={renderHeight}
+                preserveAspectRatio="xMidYMid meet"
+                style={{ pointerEvents: "none" }}
+            />
             {isSelected && (
                 <rect
                     x={-renderWidth / 2 - 5}
@@ -73,15 +91,6 @@ function PhotoItem({ item, imageWidth, imageHeight }) {
                     style={{ pointerEvents: "none" }}
                 />
             )}
-            <image
-                href={photo.src}
-                x={-renderWidth / 2}
-                y={-renderHeight / 2}
-                width={renderWidth}
-                height={renderHeight}
-                preserveAspectRatio="xMidYMid meet"
-                style={{ pointerEvents: "none" }}
-            />
         </g>
     );
 }
@@ -148,6 +157,15 @@ function TexteItem({ item, imageWidth, imageHeight }) {
             aria-label={text}
             aria-pressed={isSelected}
         >
+            {/* Zone de clic transparente centrée sur le texte */}
+            <rect
+                x={-Math.max(fontSize * 4, 40)}
+                y={-fontSize}
+                width={Math.max(fontSize * 8, 80)}
+                height={fontSize * 2}
+                fill="transparent"
+                stroke="none"
+            />
             {isSelected && (
                 <circle
                     r={fontSize * 1.6}

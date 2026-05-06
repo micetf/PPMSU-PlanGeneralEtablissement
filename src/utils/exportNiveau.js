@@ -62,7 +62,7 @@ function drawArrow(ctx, item, symbol, w, h, ox = 0, oy = 0) {
 
     const color = item.color ?? symbol?.color ?? "#EA580C";
     const strokeWidth = item.strokeWidth ?? symbol?.strokeWidth ?? 3;
-    const arrowLen = 16;
+    const arrowLen = Math.max(16, strokeWidth * 4);
     const arrowAngle = Math.PI / 6;
 
     const last = pts[pts.length - 1];
