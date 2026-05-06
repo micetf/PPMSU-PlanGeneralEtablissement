@@ -183,12 +183,18 @@ export function NiveauWorkspaceCanvas({
                         }
                         showLabel={false}
                     />
+                    <ArrowLayer
+                        imageWidth={imgW}
+                        imageHeight={imgH}
+                        layerFilter="back"
+                    />
                     <NiveauSymbolLayer imageWidth={imgW} imageHeight={imgH} />
                     <ArrowLayer
                         imageWidth={imgW}
                         imageHeight={imgH}
                         arrowPoints={arrowPoints}
                         arrowCursorPos={arrowCursorPos}
+                        layerFilter="front"
                     />
                 </div>
             )}

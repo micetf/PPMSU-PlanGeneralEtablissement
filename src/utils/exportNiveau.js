@@ -177,8 +177,10 @@ export async function exportNiveauToPng(niveau, project) {
         }
     }
 
-    // Calculer les limites du contenu (espace image + photos éventuelles)
+    // Calculer les limites du contenu (image + photos + flèches + annotations)
     let minX = 0, minY = 0, maxX = w, maxY = h;
+    const margin = 16;
+
     for (const item of photoItems) {
         const pImg = photoImgs.get(item.photoId);
         if (!pImg) continue;
@@ -187,11 +189,37 @@ export async function exportNiveauToPng(niveau, project) {
         const pw = ((item.widthPct ?? 25) / 100) * w;
         const ar = item.aspectRatio ?? pImg.naturalHeight / pImg.naturalWidth;
         const ph = pw * ar;
-        const margin = 16;
         minX = Math.min(minX, cx - pw / 2 - margin);
         minY = Math.min(minY, cy - ph / 2 - margin);
         maxX = Math.max(maxX, cx + pw / 2 + margin);
         maxY = Math.max(maxY, cy + ph / 2 + margin);
+    }
+
+    for (const item of (niveau.legendItems ?? [])) {
+        if (item.type === NIVEAUX_ELEMENT_TYPES.FLECHE) {
+            const rawPts = item.points ?? (
+                item.startX !== undefined
+                    ? [{ x: item.startX, y: item.startY }, { x: item.endX, y: item.endY }]
+                    : []
+            );
+            const arrowMargin = Math.max(margin, (item.strokeWidth ?? 3) * 4);
+            for (const p of rawPts) {
+                const px = (p.x / 100) * w;
+                const py = (p.y / 100) * h;
+                minX = Math.min(minX, px - arrowMargin);
+                minY = Math.min(minY, py - arrowMargin);
+                maxX = Math.max(maxX, px + arrowMargin);
+                maxY = Math.max(maxY, py + arrowMargin);
+            }
+        } else if (item.type === NIVEAUX_ELEMENT_TYPES.TEXTE) {
+            const tx = (item.x / 100) * w;
+            const ty = (item.y / 100) * h;
+            const fs = item.fontSize ?? item.width ?? 14;
+            minX = Math.min(minX, tx - fs * 5 - margin);
+            minY = Math.min(minY, ty - fs - margin);
+            maxX = Math.max(maxX, tx + fs * 5 + margin);
+            maxY = Math.max(maxY, ty + fs + margin);
+        }
     }
 
     // Offset pour ramener minX/minY à 0
@@ -227,18 +255,29 @@ export async function exportNiveauToPng(niveau, project) {
     // Contours ZMS
     drawContours(ctx, niveau.contourPaths ?? [], w, h, ox, oy);
 
-    // Éléments de légende
+    // Éléments de légende — rendu en deux passes pour respecter le calque des flèches
     const items = niveau.legendItems ?? [];
-    for (const item of items) {
-        const symbol = getNiveauSymbolByKey(item.symbolKey);
-        if (item.type === NIVEAUX_ELEMENT_TYPES.FLECHE) {
-            drawArrow(ctx, item, symbol, w, h, ox, oy);
-        } else if (item.type === NIVEAUX_ELEMENT_TYPES.PHOTO) {
+    const backArrows = items.filter(
+        (i) => i.type === NIVEAUX_ELEMENT_TYPES.FLECHE && i.abovePhotos === false
+    );
+    const frontArrows = items.filter(
+        (i) => i.type === NIVEAUX_ELEMENT_TYPES.FLECHE && i.abovePhotos !== false
+    );
+    const others = items.filter((i) => i.type !== NIVEAUX_ELEMENT_TYPES.FLECHE);
+
+    for (const item of backArrows) {
+        drawArrow(ctx, item, getNiveauSymbolByKey(item.symbolKey), w, h, ox, oy);
+    }
+    for (const item of others) {
+        if (item.type === NIVEAUX_ELEMENT_TYPES.PHOTO) {
             const pImg = photoImgs.get(item.photoId);
             if (pImg) drawPhoto(ctx, item, pImg, w, h, ox, oy);
         } else if (item.type === NIVEAUX_ELEMENT_TYPES.TEXTE) {
-            drawTexte(ctx, item, symbol, w, h, ox, oy);
+            drawTexte(ctx, item, getNiveauSymbolByKey(item.symbolKey), w, h, ox, oy);
         }
+    }
+    for (const item of frontArrows) {
+        drawArrow(ctx, item, getNiveauSymbolByKey(item.symbolKey), w, h, ox, oy);
     }
 
     const niveauNom = niveau.nom || "niveau";

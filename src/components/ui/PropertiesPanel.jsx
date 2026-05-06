@@ -273,6 +273,7 @@ NiveauZMSProperties.propTypes = {
 
 function FlecheProperties({ item, onUpdate }) {
     const update = (changes) => onUpdate(item.id, changes);
+    const abovePhotos = item.abovePhotos !== false;
     return (
         <div className="flex flex-col gap-3">
             <ColorPicker
@@ -288,10 +289,32 @@ function FlecheProperties({ item, onUpdate }) {
                 onChange={(v) => update({ strokeWidth: v })}
                 unit="px"
             />
-            <RotationControl
-                value={item.rotation ?? 0}
-                onChange={(v) => update({ rotation: v })}
-            />
+            <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">
+                    Position par rapport aux photos
+                </span>
+                <div className="flex gap-1">
+                    {[
+                        { label: "Au-dessus", value: true },
+                        { label: "Dessous", value: false },
+                    ].map(({ label, value }) => (
+                        <button
+                            key={label}
+                            type="button"
+                            onClick={() => update({ abovePhotos: value })}
+                            className={[
+                                "flex-1 rounded py-1 text-[10px] transition-colors",
+                                "focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400",
+                                abovePhotos === value
+                                    ? "bg-blue-100 text-blue-600 font-medium"
+                                    : "bg-slate-100 text-slate-500 hover:bg-slate-200",
+                            ].join(" ")}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
+            </div>
             <SliderField
                 label="Opacité"
                 value={item.opacity ?? 1}

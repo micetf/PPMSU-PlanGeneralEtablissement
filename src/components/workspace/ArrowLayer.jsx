@@ -1,7 +1,8 @@
 /**
  * @fileoverview Couche SVG — flèches (polylignes) du niveau actif.
  * Chaque flèche est une polyligne avec une pointe au dernier segment.
- * Sélectionnable, déplaçable (entier ou nœud par nœud) et pivoTable en mode "select".
+ * Sélectionnable, déplaçable (entier ou nœud par nœud) en mode "select".
+ * La prop layerFilter ("front"|"back") sélectionne les flèches selon item.abovePhotos.
  */
 import { useRef } from "react";
 import PropTypes from "prop-types";
@@ -41,16 +42,8 @@ function DraggableArrowNode({ item, nodeIndex, svgPt, activeNiveau, zoom }) {
         onMove: (dx, dy) => {
             if (!dragOrigin.current || !activeNiveau) return;
             const { naturalWidth, naturalHeight } = activeNiveau.image;
-            const rotation = item.rotation ?? 0;
-
-            // Convertir le delta écran en delta % image,
-            // puis tourner dans le référentiel canonique (anti-rotation)
-            const dxVis = (dx / zoom / naturalWidth) * 100;
-            const dyVis = (dy / zoom / naturalHeight) * 100;
-            const rad = -(rotation * Math.PI) / 180;
-            const dxPct = dxVis * Math.cos(rad) - dyVis * Math.sin(rad);
-            const dyPct = dxVis * Math.sin(rad) + dyVis * Math.cos(rad);
-
+            const dxPct = (dx / zoom / naturalWidth) * 100;
+            const dyPct = (dy / zoom / naturalHeight) * 100;
             const newPoints = dragOrigin.current.map((p, i) =>
                 i === nodeIndex
                     ? { x: p.x + dxPct, y: p.y + dyPct }
@@ -104,7 +97,6 @@ function ArrowItem({ item, imageWidth, imageHeight }) {
         onMove: (dx, dy) => {
             if (!dragOrigin.current || !activeNiveau) return;
             const { naturalWidth, naturalHeight } = activeNiveau.image;
-            // Déplacement global : pas besoin de dé-rotation (on ajoute le même delta % à tous les points)
             const dxPct = (dx / zoom / naturalWidth) * 100;
             const dyPct = (dy / zoom / naturalHeight) * 100;
             actions.updateNiveauLegendItem(item.id, {
@@ -134,7 +126,6 @@ function ArrowItem({ item, imageWidth, imageHeight }) {
             : []
     );
 
-    // Points en coordonnées SVG (non-rotatés — rotation appliquée via transform)
     const pts = rawPts.map((p) => ({
         x: (p.x / 100) * imageWidth,
         y: (p.y / 100) * imageHeight,
@@ -144,23 +135,15 @@ function ArrowItem({ item, imageWidth, imageHeight }) {
 
     const head = computeArrowhead(pts, strokeWidth);
 
-    // Polyline raccourcie (sans le bout pour laisser place à la pointe)
     const shortPts = [...pts];
     shortPts[shortPts.length - 1] = head.lineEnd;
     const polyPts = shortPts.map((p) => `${p.x},${p.y}`).join(" ");
     const allPts = pts.map((p) => `${p.x},${p.y}`).join(" ");
 
-    // Rotation SVG autour du barycentre des points canoniques
-    const rotation = item.rotation ?? 0;
-    const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
-    const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length;
-    const rotateTransform = rotation ? `rotate(${rotation}, ${cx}, ${cy})` : undefined;
-
     const isSelectable = selectedTool === "select";
 
     return (
         <g
-            transform={rotateTransform}
             opacity={item.opacity ?? 1}
             style={{ cursor: isSelectable ? "grab" : "default" }}
             onMouseDown={handleMouseDown}
@@ -238,21 +221,35 @@ ArrowItem.propTypes = {
     imageHeight: PropTypes.number.isRequired,
 };
 
-export function ArrowLayer({ imageWidth, imageHeight, arrowPoints, arrowCursorPos }) {
+/**
+ * @param {object} props
+ * @param {"front"|"back"} props.layerFilter - "front" = flèches au-dessus des photos (défaut),
+ *   "back" = flèches en dessous des photos (item.abovePhotos === false)
+ */
+export function ArrowLayer({ imageWidth, imageHeight, arrowPoints, arrowCursorPos, layerFilter }) {
     const { state } = useApp();
     const activeNiveau = state.planNiveaux.niveaux.find(
         (n) => n.id === state.planNiveaux.activeNiveauId
     );
     if (!activeNiveau) return null;
 
-    const arrows = activeNiveau.legendItems.filter(
+    const allArrows = activeNiveau.legendItems.filter(
         (item) => item.type === NIVEAUX_ELEMENT_TYPES.FLECHE
     );
 
-    // Polyligne fantôme pendant le dessin
-    const ghostPts = arrowCursorPos
+    // "back" = explicitement sous les photos ; "front" = tout le reste (défaut)
+    const arrows = allArrows.filter((item) =>
+        layerFilter === "back"
+            ? item.abovePhotos === false
+            : item.abovePhotos !== false
+    );
+
+    // La polyligne fantôme n'est rendue que sur le calque "front"
+    const ghostPts = layerFilter === "front" && arrowCursorPos
         ? [...arrowPoints, arrowCursorPos]
-        : arrowPoints;
+        : layerFilter === "front"
+          ? arrowPoints
+          : [];
 
     const ghostHead = ghostPts.length >= 2
         ? computeArrowhead(
@@ -263,7 +260,7 @@ export function ArrowLayer({ imageWidth, imageHeight, arrowPoints, arrowCursorPo
           )
         : null;
 
-    if (!arrows.length && !arrowPoints.length) return null;
+    if (!arrows.length && !ghostPts.length) return null;
 
     return (
         <svg
@@ -284,7 +281,7 @@ export function ArrowLayer({ imageWidth, imageHeight, arrowPoints, arrowCursorPo
             ))}
 
             {/* Premier sommet posé */}
-            {arrowPoints.length === 1 && (
+            {layerFilter === "front" && arrowPoints.length === 1 && (
                 <circle
                     cx={(arrowPoints[0].x / 100) * imageWidth}
                     cy={(arrowPoints[0].y / 100) * imageHeight}
@@ -337,9 +334,11 @@ ArrowLayer.propTypes = {
     imageHeight: PropTypes.number.isRequired,
     arrowPoints: PropTypes.array,
     arrowCursorPos: PropTypes.object,
+    layerFilter: PropTypes.oneOf(["front", "back"]),
 };
 
 ArrowLayer.defaultProps = {
     arrowPoints: [],
     arrowCursorPos: null,
+    layerFilter: "front",
 };
