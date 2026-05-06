@@ -5,32 +5,11 @@
  * Affiché quand moduleActif === 'planGeneral' et qu'aucune image n'est chargée.
  * Contient : retour accueil, DropZone, import de projet, projets sauvegardés.
  */
-import { useApp } from "../../hooks/useApp";
 import { useProjectManager } from "../../hooks/useProjectManager";
 import { DropZone } from "./DropZone";
 import { SavedProjectsList } from "./SavedProjectsList";
 import { ImportButton } from "./ImportButton";
-
-/**
- * Bouton de retour vers l'accueil (sans confirmation — aucun travail en cours)
- */
-function BoutonRetour() {
-    const { actions } = useApp();
-    return (
-        <button
-            type="button"
-            onClick={() => actions.setModule(null)}
-            className="flex items-center gap-1.5 text-sm text-slate-400
-                       hover:text-slate-600 transition-colors
-                       focus:outline-none focus-visible:ring-2
-                       focus-visible:ring-slate-400 rounded px-1"
-            aria-label="Retourner à l'accueil"
-        >
-            <span aria-hidden="true">←</span>
-            Accueil
-        </button>
-    );
-}
+import { ModuleTabBar } from "./ModuleTabBar";
 
 /**
  * Écran d'accueil du module Plan Général de l'École
@@ -39,14 +18,12 @@ export function PlanGeneralSetup() {
     const { projects, handleLoad, handleDelete } = useProjectManager();
 
     return (
-        <div
-            className="flex flex-col items-center min-h-screen pt-10
-                        gap-6 p-6 bg-slate-100"
-        >
-            {/* Navigation retour */}
-            <div className="w-full max-w-xl">
-                <BoutonRetour />
-            </div>
+        <div className="flex flex-col h-screen overflow-hidden pt-10">
+            <ModuleTabBar />
+            <div
+                className="flex flex-col items-center flex-1 overflow-y-auto
+                            gap-6 p-6 bg-slate-100"
+            >
 
             {/* En-tête du module */}
             <header className="text-center">
@@ -81,6 +58,7 @@ export function PlanGeneralSetup() {
                 onLoad={handleLoad}
                 onDelete={handleDelete}
             />
+            </div>
         </div>
     );
 }

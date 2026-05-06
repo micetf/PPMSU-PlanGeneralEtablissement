@@ -223,6 +223,7 @@ export function AppProvider({ children }) {
             payload: {
                 symbolKey,
                 firstPoint,
+                nom: symbol.label ?? "Zone de mise en sûreté",
                 color: symbol.color,
                 strokeWidth: symbol.strokeWidth ?? 3,
                 strokeStyle: symbol.strokeStyle ?? "solid",
@@ -292,6 +293,15 @@ export function AppProvider({ children }) {
     const removeNiveauPhoto = useCallback(
         (id) =>
             dispatch({ type: ACTION_TYPES.PN_REMOVE_PHOTO, payload: id }),
+        []
+    );
+
+    const setNiveauRotation = useCallback(
+        (rotation) =>
+            dispatch({
+                type: ACTION_TYPES.PN_SET_NIVEAU_ROTATION,
+                payload: ((rotation % 360) + 360) % 360,
+            }),
         []
     );
 
@@ -568,6 +578,7 @@ export function AppProvider({ children }) {
         updateNiveauContourPoint,
         addNiveauPhoto,
         removeNiveauPhoto,
+        setNiveauRotation,
         // UI
         setTool,
         selectSymbol,

@@ -91,6 +91,7 @@ export function NiveauWorkspaceCanvas({
     const { src, naturalWidth, naturalHeight } = activeNiveau?.image ?? {};
     const { zoom, panOffset } = state.ui;
     const activeNiveauId = state.planNiveaux.activeNiveauId;
+    const rotation = activeNiveau?.rotation ?? 0;
 
     useEffect(() => {
         if (!src || !naturalWidth || !naturalHeight || !containerRef.current)
@@ -153,11 +154,14 @@ export function NiveauWorkspaceCanvas({
         >
             {!imgError && (
                 <div
-                    className="absolute origin-top-left"
+                    className="absolute"
                     style={{
-                        transform: `translate(${panOffset.x}px, ${panOffset.y}px)`,
+                        left: panOffset.x,
+                        top: panOffset.y,
                         width: imgW,
                         height: imgH,
+                        transform: rotation ? `rotate(${rotation}deg)` : undefined,
+                        transformOrigin: "center center",
                     }}
                 >
                     <img

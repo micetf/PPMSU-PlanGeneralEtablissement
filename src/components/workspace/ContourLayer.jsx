@@ -232,7 +232,7 @@ function ContourPath({
                                 userSelect: "none",
                             }}
                         >
-                            Zone de mise en sûreté
+                            {path.nom ?? "Zone de mise en sûreté"}
                         </text>
                     );
                 })()}

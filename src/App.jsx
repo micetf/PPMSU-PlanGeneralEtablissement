@@ -15,6 +15,7 @@ import { NiveauxToolbar } from "./components/ui/NiveauxToolbar";
 import { NiveauxList } from "./components/ui/NiveauxList";
 import { PropertiesPanel } from "./components/ui/PropertiesPanel";
 import { TopBar } from "./components/ui/TopBar";
+import { ModuleTabBar } from "./components/ui/ModuleTabBar";
 import { WorkspaceCanvas } from "./components/workspace/WorkspaceCanvas";
 import { NiveauWorkspaceCanvas } from "./components/workspace/NiveauWorkspaceCanvas";
 import { useApp } from "./hooks/useApp";
@@ -22,6 +23,7 @@ import { useContourDraw } from "./hooks/useContourDraw";
 import { useNiveauContourDraw } from "./hooks/useNiveauContourDraw";
 import { useArrowDraw } from "./hooks/useArrowDraw";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { eventToNiveauPct } from "./utils/niveauCoords";
 
 /** @type {{ appTitle:string, paypalButtonId:string, contactEmail:string }} */
 const MICETF_CONFIG = {
@@ -68,6 +70,7 @@ function WorkspaceLayout() {
 
     return (
         <div className="flex flex-col h-screen overflow-hidden pt-10">
+            <ModuleTabBar />
             <TopBar />
             <div className="flex flex-1 min-h-0 overflow-hidden">
                 <LegendToolbar />
@@ -118,18 +121,15 @@ function NiveauWorkspaceLayout() {
         }
         if (selectedTool === "place" && selectedSymbolKey) {
             // Marqueur photo ou annotation : placement simple
-            const rect = e.currentTarget.getBoundingClientRect();
-            const { zoom, panOffset } = state.ui;
             const activeNiveau = state.planNiveaux.niveaux.find(
                 (n) => n.id === state.planNiveaux.activeNiveauId
             );
             if (!activeNiveau) return;
-            const { naturalWidth, naturalHeight } = activeNiveau.image;
-            const imgX = (e.clientX - rect.left - panOffset.x) / zoom;
-            const imgY = (e.clientY - rect.top - panOffset.y) / zoom;
+            const point = eventToNiveauPct(e, activeNiveau, state.ui);
+            if (!point) return;
             actions.addNiveauLegendItem(selectedSymbolKey, {
-                x: (imgX / naturalWidth) * 100,
-                y: (imgY / naturalHeight) * 100,
+                x: point.x,
+                y: point.y,
                 label: "",
             });
             return;
@@ -151,6 +151,7 @@ function NiveauWorkspaceLayout() {
 
     return (
         <div className="flex flex-col h-screen overflow-hidden pt-10">
+            <ModuleTabBar />
             <TopBar />
             <div className="flex flex-1 min-h-0 overflow-hidden">
                 <NiveauxList />
@@ -174,32 +175,26 @@ function NiveauWorkspaceLayout() {
 // ── Placeholder modules à venir ───────────────────────────────────────────────
 
 function ModuleAVenir({ titre, description }) {
-    const { actions } = useApp();
     return (
-        <div
-            className="flex flex-col items-center justify-center min-h-screen pt-10
-                        gap-6 bg-slate-50 text-center px-4"
-        >
+        <div className="flex flex-col h-screen overflow-hidden pt-10">
+            <ModuleTabBar />
             <div
-                className="w-16 h-16 rounded-2xl bg-slate-200 flex items-center
-                            justify-center text-3xl"
+                className="flex flex-col items-center justify-center flex-1
+                            gap-6 bg-slate-50 text-center px-4"
             >
-                🚧
+                <div
+                    className="w-16 h-16 rounded-2xl bg-slate-200 flex items-center
+                                justify-center text-3xl"
+                >
+                    🚧
+                </div>
+                <div>
+                    <h2 className="text-xl font-bold text-slate-700">{titre}</h2>
+                    <p className="mt-2 text-sm text-slate-400 max-w-sm">
+                        {description}
+                    </p>
+                </div>
             </div>
-            <div>
-                <h2 className="text-xl font-bold text-slate-700">{titre}</h2>
-                <p className="mt-2 text-sm text-slate-400 max-w-sm">
-                    {description}
-                </p>
-            </div>
-            <button
-                type="button"
-                onClick={() => actions.setModule(null)}
-                className="px-4 py-2 rounded-xl bg-slate-200 text-slate-600 text-sm
-                           hover:bg-slate-300 transition-colors"
-            >
-                ← Retour à l'accueil
-            </button>
         </div>
     );
 }

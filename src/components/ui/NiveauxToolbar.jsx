@@ -118,6 +118,11 @@ export function NiveauxToolbar() {
     const { state, actions } = useApp();
     const { selectedTool, selectedSymbolKey } = state.ui;
 
+    const activeNiveau = state.planNiveaux.niveaux.find(
+        (n) => n.id === state.planNiveaux.activeNiveauId
+    );
+    const rotation = activeNiveau?.rotation ?? 0;
+
     const handleSelectSymbol = (key) => {
         const symbol = getNiveauSymbolByKey(key);
         if (!symbol) return;
@@ -143,6 +148,42 @@ export function NiveauxToolbar() {
                 <h2 className="text-sm font-bold text-slate-700">Outils</h2>
                 <p className="text-[10px] text-slate-400 mt-0.5">Plan des Niveaux</p>
             </div>
+
+            {/* Rotation du plan */}
+            {activeNiveau?.image?.src && (
+                <div className="px-3 py-2 border-b border-slate-200 shrink-0">
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
+                        Rotation
+                    </p>
+                    <div className="flex items-center gap-1">
+                        <button
+                            type="button"
+                            onClick={() => actions.setNiveauRotation(rotation - 90)}
+                            title="Pivoter à gauche (−90°)"
+                            className="flex-1 py-1.5 rounded-lg text-sm bg-slate-100 text-slate-600
+                                       hover:bg-slate-200 transition-colors focus:outline-none
+                                       focus-visible:ring-2 focus-visible:ring-blue-400"
+                            aria-label="Pivoter à gauche"
+                        >
+                            ↺
+                        </button>
+                        <span className="text-[10px] text-slate-400 w-8 text-center shrink-0">
+                            {rotation}°
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => actions.setNiveauRotation(rotation + 90)}
+                            title="Pivoter à droite (+90°)"
+                            className="flex-1 py-1.5 rounded-lg text-sm bg-slate-100 text-slate-600
+                                       hover:bg-slate-200 transition-colors focus:outline-none
+                                       focus-visible:ring-2 focus-visible:ring-blue-400"
+                            aria-label="Pivoter à droite"
+                        >
+                            ↻
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Outil sélection */}
             <div className="px-2 py-2 border-b border-slate-200 shrink-0">

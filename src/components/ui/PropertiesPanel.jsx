@@ -203,6 +203,66 @@ ContourProperties.propTypes = {
     onUpdate: PropTypes.func.isRequired,
 };
 
+// ── Plan des Niveaux — Zone ZMS ──────────────────────────────────────────────
+
+function NiveauZMSProperties({ item, onUpdate }) {
+    const update = (changes) => onUpdate(item.id, changes);
+    return (
+        <div className="flex flex-col gap-3">
+            <TextField
+                label="Nom de la zone"
+                value={item.nom ?? "Zone de mise en sûreté"}
+                placeholder="ex : Zone A - RDC"
+                onChange={(v) => update({ nom: v })}
+            />
+            <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">
+                    Couleur du périmètre
+                </span>
+                <div className="flex items-center gap-2">
+                    <input
+                        type="color"
+                        value={item.color ?? "#43729D"}
+                        onChange={(e) =>
+                            update({ color: e.target.value, fillColor: e.target.value })
+                        }
+                        className="w-8 h-8 rounded cursor-pointer border border-slate-200"
+                        aria-label="Couleur du périmètre"
+                    />
+                    <span className="text-xs text-slate-500 font-mono">
+                        {item.color ?? "#43729D"}
+                    </span>
+                </div>
+            </div>
+            <NumberField
+                label="Épaisseur du périmètre"
+                value={item.strokeWidth ?? 3}
+                min={1}
+                max={20}
+                onChange={(v) => update({ strokeWidth: v })}
+                unit="px"
+            />
+            <SliderField
+                label="Opacité remplissage"
+                value={item.fillOpacity ?? 0.25}
+                min={0}
+                max={1}
+                step={0.05}
+                onChange={(v) => update({ fillOpacity: v })}
+            />
+            <p className="text-[10px] text-slate-400">
+                {item.points.length} point{item.points.length > 1 ? "s" : ""}
+                {item.closed ? " · fermé" : " · en cours"}
+            </p>
+        </div>
+    );
+}
+
+NiveauZMSProperties.propTypes = {
+    item: PropTypes.object.isRequired,
+    onUpdate: PropTypes.func.isRequired,
+};
+
 // ── Plan des Niveaux — Photo associée ────────────────────────────────────────
 
 function PhotoAssociee({ photoId, activeNiveau, onUpdate, onRemove }) {
@@ -520,7 +580,7 @@ export function PropertiesPanel() {
                         />
                     )}
                 {isNiveaux && type === "contour" && (
-                    <ContourProperties item={item} onUpdate={handleUpdateContour} />
+                    <NiveauZMSProperties item={item} onUpdate={handleUpdateContour} />
                 )}
             </div>
 

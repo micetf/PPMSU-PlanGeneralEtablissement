@@ -5,26 +5,10 @@
 import { useState, useRef, useCallback } from "react";
 import PropTypes from "prop-types";
 import { useApp } from "../../hooks/useApp";
+import { ModuleTabBar } from "./ModuleTabBar";
 
 const MAX_SIZE_BYTES = 10 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-
-function BoutonRetour() {
-    const { actions } = useApp();
-    return (
-        <button
-            type="button"
-            onClick={() => actions.setModule(null)}
-            className="flex items-center gap-1.5 text-sm text-slate-400
-                       hover:text-slate-600 transition-colors
-                       focus:outline-none focus-visible:ring-2
-                       focus-visible:ring-slate-400 rounded px-1"
-        >
-            <span aria-hidden="true">←</span>
-            Accueil
-        </button>
-    );
-}
 
 function AddNiveauForm({ onAdd }) {
     const [nom, setNom] = useState("");
@@ -174,49 +158,46 @@ export function PlanNiveauxSetup() {
 
     if (niveaux.length === 0) {
         return (
-            <div
-                className="flex flex-col items-center min-h-screen pt-10
-                            gap-6 p-6 bg-slate-100"
-            >
-                <div className="w-full max-w-xl">
-                    <BoutonRetour />
-                </div>
-
-                <header className="text-center">
-                    <h1 className="text-2xl font-bold text-slate-800">
-                        Plans des Niveaux
-                    </h1>
-                    <p className="mt-1 text-sm text-slate-500">
-                        Annotez les plans d'intervention par étage ou bâtiment
-                    </p>
-                </header>
-
+            <div className="flex flex-col h-screen overflow-hidden pt-10">
+                <ModuleTabBar />
                 <div
-                    className="w-full max-w-xl bg-white rounded-2xl border border-slate-200
-                                p-6 flex flex-col gap-4"
+                    className="flex flex-col items-center flex-1 overflow-y-auto
+                                gap-6 p-6 bg-slate-100"
                 >
-                    <h2 className="text-base font-semibold text-slate-700">
-                        Créez votre premier niveau
-                    </h2>
-                    <p className="text-sm text-slate-500">
-                        Donnez un nom à ce niveau (RDC, 1er étage, Bâtiment A…), puis
-                        chargez son plan d'intervention.
-                    </p>
-                    <AddNiveauForm onAdd={(nom) => actions.addNiveau(nom)} />
+                    <header className="text-center">
+                        <h1 className="text-2xl font-bold text-slate-800">
+                            Plans des Niveaux
+                        </h1>
+                        <p className="mt-1 text-sm text-slate-500">
+                            Annotez les plans d'intervention par étage ou bâtiment
+                        </p>
+                    </header>
+
+                    <div
+                        className="w-full max-w-xl bg-white rounded-2xl border border-slate-200
+                                    p-6 flex flex-col gap-4"
+                    >
+                        <h2 className="text-base font-semibold text-slate-700">
+                            Créez votre premier niveau
+                        </h2>
+                        <p className="text-sm text-slate-500">
+                            Donnez un nom à ce niveau (RDC, 1er étage, Bâtiment A…), puis
+                            chargez son plan d'intervention.
+                        </p>
+                        <AddNiveauForm onAdd={(nom) => actions.addNiveau(nom)} />
+                    </div>
                 </div>
             </div>
         );
     }
 
     return (
-        <div
-            className="flex flex-col items-center min-h-screen pt-10
-                        gap-6 p-6 bg-slate-100"
-        >
-            <div className="w-full max-w-xl">
-                <BoutonRetour />
-            </div>
-
+        <div className="flex flex-col h-screen overflow-hidden pt-10">
+            <ModuleTabBar />
+            <div
+                className="flex flex-col items-center flex-1 overflow-y-auto
+                            gap-6 p-6 bg-slate-100"
+            >
             <header className="text-center">
                 <h1 className="text-2xl font-bold text-slate-800">
                     Plans des Niveaux
@@ -281,6 +262,7 @@ export function PlanNiveauxSetup() {
                     </p>
                     <AddNiveauForm onAdd={(nom) => actions.addNiveau(nom)} />
                 </div>
+            </div>
             </div>
         </div>
     );

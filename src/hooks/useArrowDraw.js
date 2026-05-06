@@ -6,6 +6,7 @@
 import { useCallback, useState } from "react";
 import { useApp } from "./useApp";
 import { getNiveauSymbolByKey } from "../constants/niveauxLegend";
+import { eventToNiveauPct } from "../utils/niveauCoords";
 
 export function useArrowDraw() {
     const { state, actions } = useApp();
@@ -17,18 +18,7 @@ export function useArrowDraw() {
     );
 
     const toImagePct = useCallback(
-        (e) => {
-            if (!activeNiveau) return null;
-            const rect = e.currentTarget.getBoundingClientRect();
-            const { zoom, panOffset } = state.ui;
-            const { naturalWidth, naturalHeight } = activeNiveau.image;
-            const imgX = (e.clientX - rect.left - panOffset.x) / zoom;
-            const imgY = (e.clientY - rect.top - panOffset.y) / zoom;
-            return {
-                x: (imgX / naturalWidth) * 100,
-                y: (imgY / naturalHeight) * 100,
-            };
-        },
+        (e) => eventToNiveauPct(e, activeNiveau, state.ui),
         [state.ui, activeNiveau]
     );
 

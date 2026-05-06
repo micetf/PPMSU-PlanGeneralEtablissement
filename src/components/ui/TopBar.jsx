@@ -46,7 +46,6 @@ export function TopBar() {
     const { state, actions } = useApp();
     const [showModal, setShowModal] = useState(false);
     const [showConfirmNew, setShowConfirmNew] = useState(false);
-    const [showConfirmBack, setShowConfirmBack] = useState(false);
 
     const {
         projects,
@@ -71,14 +70,6 @@ export function TopBar() {
             : Boolean(state.planGeneral.image.src);
 
     /** Retour à l'accueil : confirmation si travail non sauvegardé */
-    const handleBackClick = () => {
-        if (state.ui.isDirty) {
-            setShowConfirmBack(true);
-        } else {
-            actions.setModule(null);
-        }
-    };
-
     const handleNewClick = () => {
         if (state.ui.isDirty) {
             setShowConfirmNew(true);
@@ -93,29 +84,6 @@ export function TopBar() {
                 className="flex items-center gap-3 px-4 h-12 bg-white
                                border-b border-slate-200 shrink-0 z-10"
             >
-                {/* Retour accueil */}
-                <button
-                    type="button"
-                    onClick={handleBackClick}
-                    title="Retourner à l'accueil"
-                    className="flex items-center gap-1 text-xs text-slate-400
-                               hover:text-slate-600 transition-colors shrink-0
-                               focus:outline-none focus-visible:ring-2
-                               focus-visible:ring-slate-400 rounded px-1 py-0.5"
-                    aria-label="Retourner à l'accueil"
-                >
-                    <span aria-hidden="true">←</span>
-                    <span className="hidden sm:inline">Accueil</span>
-                </button>
-
-                {/* Séparateur */}
-                <span
-                    className="text-slate-200 select-none shrink-0"
-                    aria-hidden="true"
-                >
-                    |
-                </span>
-
                 {/* Nom du projet */}
                 <input
                     type="text"
@@ -276,21 +244,6 @@ export function TopBar() {
                 />
             )}
 
-            {/* Confirmation : retour accueil */}
-            {showConfirmBack && (
-                <ConfirmModal
-                    title="Retour à l'accueil"
-                    message="Des modifications non sauvegardées seront perdues. Quitter le projet ?"
-                    confirmLabel="Quitter"
-                    cancelLabel="Annuler"
-                    variant="warning"
-                    onConfirm={() => {
-                        setShowConfirmBack(false);
-                        actions.setModule(null);
-                    }}
-                    onCancel={() => setShowConfirmBack(false)}
-                />
-            )}
         </>
     );
 }

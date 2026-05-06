@@ -50,9 +50,10 @@ function drawContours(ctx, contourPaths, w, h) {
         ctx.textBaseline = "middle";
         ctx.strokeStyle = "white";
         ctx.lineWidth = 3;
-        ctx.strokeText("Zone de mise en sûreté", cx, cy);
+        const label = path.nom ?? "Zone de mise en sûreté";
+        ctx.strokeText(label, cx, cy);
         ctx.fillStyle = path.color;
-        ctx.fillText("Zone de mise en sûreté", cx, cy);
+        ctx.fillText(label, cx, cy);
 
         ctx.setLineDash([]);
     });
@@ -190,11 +191,23 @@ export async function exportNiveauToPng(niveau, project) {
     const bgImage = await loadImage(niveau.image.src);
     const w = niveau.image.naturalWidth;
     const h = niveau.image.naturalHeight;
+    const rotation = niveau.rotation ?? 0;
+
+    // For 90°/270° rotations the canvas dimensions swap
+    const isTransposed = rotation === 90 || rotation === 270;
+    const cw = isTransposed ? h : w;
+    const ch = isTransposed ? w : h;
 
     const canvas = document.createElement("canvas");
-    canvas.width = w;
-    canvas.height = h;
+    canvas.width = cw;
+    canvas.height = ch;
     const ctx = canvas.getContext("2d");
+
+    if (rotation !== 0) {
+        ctx.translate(cw / 2, ch / 2);
+        ctx.rotate((rotation * Math.PI) / 180);
+        ctx.translate(-w / 2, -h / 2);
+    }
 
     ctx.drawImage(bgImage, 0, 0, w, h);
 

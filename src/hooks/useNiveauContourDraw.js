@@ -5,8 +5,7 @@
 import { useCallback, useState } from "react";
 import { useApp } from "./useApp";
 import { getNiveauSymbolByKey, NIVEAUX_ELEMENT_TYPES } from "../constants/niveauxLegend";
-
-const SNAP_RADIUS_PX = 12;
+import { eventToNiveauPct, isNearFirstPointRotated } from "../utils/niveauCoords";
 
 export function useNiveauContourDraw() {
     const { state, actions } = useApp();
@@ -17,33 +16,12 @@ export function useNiveauContourDraw() {
     );
 
     const toImagePct = useCallback(
-        (e) => {
-            if (!activeNiveau) return null;
-            const rect = e.currentTarget.getBoundingClientRect();
-            const { zoom, panOffset } = state.ui;
-            const { naturalWidth, naturalHeight } = activeNiveau.image;
-            const imgX = (e.clientX - rect.left - panOffset.x) / zoom;
-            const imgY = (e.clientY - rect.top - panOffset.y) / zoom;
-            return {
-                x: (imgX / naturalWidth) * 100,
-                y: (imgY / naturalHeight) * 100,
-            };
-        },
+        (e) => eventToNiveauPct(e, activeNiveau, state.ui),
         [state.ui, activeNiveau]
     );
 
     const isNearFirstPoint = useCallback(
-        (e, firstPoint) => {
-            if (!activeNiveau) return false;
-            const rect = e.currentTarget.getBoundingClientRect();
-            const { zoom, panOffset } = state.ui;
-            const { naturalWidth, naturalHeight } = activeNiveau.image;
-            const firstPxX =
-                (firstPoint.x / 100) * naturalWidth * zoom + panOffset.x + rect.left;
-            const firstPxY =
-                (firstPoint.y / 100) * naturalHeight * zoom + panOffset.y + rect.top;
-            return Math.hypot(e.clientX - firstPxX, e.clientY - firstPxY) <= SNAP_RADIUS_PX;
-        },
+        (e, firstPoint) => isNearFirstPointRotated(e, firstPoint, activeNiveau, state.ui),
         [state.ui, activeNiveau]
     );
 

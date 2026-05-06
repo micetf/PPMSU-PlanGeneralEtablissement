@@ -48,6 +48,7 @@ export const ACTION_TYPES = {
     // ── Plan des Niveaux — Photos ────────────────────────────────────────────
     PN_ADD_PHOTO: "PN_ADD_PHOTO",
     PN_REMOVE_PHOTO: "PN_REMOVE_PHOTO",
+    PN_SET_NIVEAU_ROTATION: "PN_SET_NIVEAU_ROTATION",
     // ── UI ───────────────────────────────────────────────────────────────────
     SET_SELECTED_TOOL: "SET_SELECTED_TOOL",
     SET_SELECTED_SYMBOL: "SET_SELECTED_SYMBOL",
@@ -410,6 +411,7 @@ export function appReducer(state, action) {
             const newNiveau = {
                 id: crypto.randomUUID(),
                 nom: payload.nom || "Nouveau niveau",
+                rotation: 0,
                 image: { ...EMPTY_IMAGE },
                 legendItems: [],
                 contourPaths: [],
@@ -631,6 +633,12 @@ export function appReducer(state, action) {
                         ? { ...item, photoId: null }
                         : item
                 ),
+            }));
+
+        case ACTION_TYPES.PN_SET_NIVEAU_ROTATION:
+            return updateActiveNiveau(state, (n) => ({
+                ...n,
+                rotation: payload,
             }));
 
         // ── UI ───────────────────────────────────────────────────────────────
