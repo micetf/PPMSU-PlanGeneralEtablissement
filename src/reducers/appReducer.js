@@ -7,26 +7,47 @@
 export const ACTION_TYPES = {
     // ── Navigation modules ───────────────────────────────────────────────────
     SET_MODULE: "SET_MODULE",
-    // ── Image ────────────────────────────────────────────────────────────────
-    LOAD_IMAGE: "LOAD_IMAGE",
-    CLEAR_IMAGE: "CLEAR_IMAGE",
     // ── Projet ───────────────────────────────────────────────────────────────
     SET_PROJECT_INFO: "SET_PROJECT_INFO",
     LOAD_PROJECT: "LOAD_PROJECT",
     MARK_SAVED: "MARK_SAVED",
     RESET_PROJECT: "RESET_PROJECT",
-    // ── Légende ──────────────────────────────────────────────────────────────
+    // ── Plan Général — Image ─────────────────────────────────────────────────
+    LOAD_IMAGE: "LOAD_IMAGE",
+    CLEAR_IMAGE: "CLEAR_IMAGE",
+    // ── Plan Général — Légende ───────────────────────────────────────────────
     ADD_LEGEND_ITEM: "ADD_LEGEND_ITEM",
     UPDATE_LEGEND_ITEM: "UPDATE_LEGEND_ITEM",
     REMOVE_LEGEND_ITEM: "REMOVE_LEGEND_ITEM",
     DUPLICATE_LEGEND_ITEM: "DUPLICATE_LEGEND_ITEM",
-    // ── Contours ─────────────────────────────────────────────────────────────
+    // ── Plan Général — Contours ──────────────────────────────────────────────
     ADD_CONTOUR_PATH: "ADD_CONTOUR_PATH",
     ADD_CONTOUR_POINT: "ADD_CONTOUR_POINT",
     UPDATE_CONTOUR_PATH: "UPDATE_CONTOUR_PATH",
     CLOSE_CONTOUR_PATH: "CLOSE_CONTOUR_PATH",
     REMOVE_CONTOUR_PATH: "REMOVE_CONTOUR_PATH",
     UPDATE_CONTOUR_POINT: "UPDATE_CONTOUR_POINT",
+    // ── Plan des Niveaux — Niveaux ───────────────────────────────────────────
+    PN_ADD_NIVEAU: "PN_ADD_NIVEAU",
+    PN_REMOVE_NIVEAU: "PN_REMOVE_NIVEAU",
+    PN_UPDATE_NIVEAU: "PN_UPDATE_NIVEAU",
+    PN_SET_ACTIVE_NIVEAU: "PN_SET_ACTIVE_NIVEAU",
+    PN_LOAD_IMAGE: "PN_LOAD_IMAGE",
+    // ── Plan des Niveaux — Légende ───────────────────────────────────────────
+    PN_ADD_LEGEND_ITEM: "PN_ADD_LEGEND_ITEM",
+    PN_UPDATE_LEGEND_ITEM: "PN_UPDATE_LEGEND_ITEM",
+    PN_REMOVE_LEGEND_ITEM: "PN_REMOVE_LEGEND_ITEM",
+    PN_DUPLICATE_LEGEND_ITEM: "PN_DUPLICATE_LEGEND_ITEM",
+    // ── Plan des Niveaux — Contours (ZMS) ───────────────────────────────────
+    PN_ADD_CONTOUR_PATH: "PN_ADD_CONTOUR_PATH",
+    PN_ADD_CONTOUR_POINT: "PN_ADD_CONTOUR_POINT",
+    PN_UPDATE_CONTOUR_PATH: "PN_UPDATE_CONTOUR_PATH",
+    PN_CLOSE_CONTOUR_PATH: "PN_CLOSE_CONTOUR_PATH",
+    PN_REMOVE_CONTOUR_PATH: "PN_REMOVE_CONTOUR_PATH",
+    PN_UPDATE_CONTOUR_POINT: "PN_UPDATE_CONTOUR_POINT",
+    // ── Plan des Niveaux — Photos ────────────────────────────────────────────
+    PN_ADD_PHOTO: "PN_ADD_PHOTO",
+    PN_REMOVE_PHOTO: "PN_REMOVE_PHOTO",
     // ── UI ───────────────────────────────────────────────────────────────────
     SET_SELECTED_TOOL: "SET_SELECTED_TOOL",
     SET_SELECTED_SYMBOL: "SET_SELECTED_SYMBOL",
@@ -38,15 +59,29 @@ export const ACTION_TYPES = {
 /**
  * @typedef {'planGeneral'|'planNiveaux'|'coupuresFluides'|null} ModuleActif
  *
+ * @typedef {Object} Niveau
+ * @property {string}   id
+ * @property {string}   nom
+ * @property {{ src:string|null, naturalWidth:number, naturalHeight:number, fileName:string }} image
+ * @property {Array}    legendItems
+ * @property {Array}    contourPaths
+ * @property {Array}    photos        — { id, fileName, src }
+ *
  * @typedef {Object} AppState
  * @property {{ id:string|null, name:string, schoolName:string, createdAt:string|null, updatedAt:string|null }} project
- * @property {{ src:string|null, naturalWidth:number, naturalHeight:number, fileName:string }} image
- * @property {Array}  legendItems
- * @property {Array}  contourPaths
+ * @property {{ image:{src,naturalWidth,naturalHeight,fileName}, legendItems:Array, contourPaths:Array }} planGeneral
+ * @property {{ niveaux:Niveau[], activeNiveauId:string|null }} planNiveaux
  * @property {{ moduleActif:ModuleActif, selectedTool:string, selectedSymbolKey:string|null,
  *              selectedItemId:string|null, activeDrawingPathId:string|null,
  *              zoom:number, panOffset:{x:number,y:number}, isDirty:boolean }} ui
  */
+
+const EMPTY_IMAGE = {
+    src: null,
+    naturalWidth: 0,
+    naturalHeight: 0,
+    fileName: "",
+};
 
 /** @type {AppState} */
 export const initialState = {
@@ -57,16 +92,17 @@ export const initialState = {
         createdAt: null,
         updatedAt: null,
     },
-    image: {
-        src: null,
-        naturalWidth: 0,
-        naturalHeight: 0,
-        fileName: "",
+    planGeneral: {
+        image: { ...EMPTY_IMAGE },
+        legendItems: [],
+        contourPaths: [],
     },
-    legendItems: [],
-    contourPaths: [],
+    planNiveaux: {
+        niveaux: [],
+        activeNiveauId: null,
+    },
     ui: {
-        moduleActif: null, // ← nouveau : pilote le routage interne
+        moduleActif: null,
         selectedTool: "select",
         selectedSymbolKey: null,
         selectedItemId: null,
@@ -77,12 +113,11 @@ export const initialState = {
     },
 };
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 /**
  * Nettoie un tracé actif non fermé :
  * ferme proprement s'il a ≥ 3 points, supprime sinon.
- * @param {Array} contourPaths
- * @param {string|null} activeDrawingPathId
- * @returns {Array}
  */
 function cleanActiveDrawing(contourPaths, activeDrawingPathId) {
     if (!activeDrawingPathId) return contourPaths;
@@ -99,6 +134,39 @@ function cleanActiveDrawing(contourPaths, activeDrawingPathId) {
 }
 
 /**
+ * Applique une transformation au niveau actif de planNiveaux.
+ * @param {AppState} state
+ * @param {(Niveau) => Niveau} fn
+ * @returns {AppState}
+ */
+function updateActiveNiveau(state, fn) {
+    const id = state.planNiveaux.activeNiveauId;
+    if (!id) return state;
+    return {
+        ...state,
+        planNiveaux: {
+            ...state.planNiveaux,
+            niveaux: state.planNiveaux.niveaux.map((n) =>
+                n.id === id ? fn(n) : n
+            ),
+        },
+        ui: { ...state.ui, isDirty: true },
+    };
+}
+
+/**
+ * Prochain numéro auto pour les items numérotés (flèches, marqueurs photo).
+ * @param {Array} legendItems
+ * @returns {number}
+ */
+function nextNumero(legendItems) {
+    const nums = legendItems
+        .filter((i) => i.numero != null)
+        .map((i) => i.numero);
+    return nums.length === 0 ? 1 : Math.max(...nums) + 1;
+}
+
+/**
  * Reducer pur — aucun effet de bord
  * @param {AppState} state
  * @param {{ type: string, payload?: any }} action
@@ -112,25 +180,17 @@ export function appReducer(state, action) {
         case ACTION_TYPES.SET_MODULE:
             return {
                 ...state,
-                ui: { ...state.ui, moduleActif: payload },
-            };
-
-        // ── IMAGE ────────────────────────────────────────────────────────────
-        case ACTION_TYPES.LOAD_IMAGE:
-            return {
-                ...state,
-                image: { ...payload },
-                project: {
-                    ...state.project,
-                    id: state.project.id ?? crypto.randomUUID(),
-                    createdAt:
-                        state.project.createdAt ?? new Date().toISOString(),
+                ui: {
+                    ...state.ui,
+                    moduleActif: payload,
+                    selectedTool: "select",
+                    selectedSymbolKey: null,
+                    selectedItemId: null,
+                    activeDrawingPathId: null,
+                    zoom: 1,
+                    panOffset: { x: 0, y: 0 },
                 },
-                ui: { ...state.ui, isDirty: true },
             };
-
-        case ACTION_TYPES.CLEAR_IMAGE:
-            return { ...initialState };
 
         // ── PROJET ───────────────────────────────────────────────────────────
         case ACTION_TYPES.SET_PROJECT_INFO:
@@ -141,7 +201,6 @@ export function appReducer(state, action) {
             };
 
         case ACTION_TYPES.LOAD_PROJECT:
-            // moduleActif préservé : on reste dans le module courant après chargement
             return {
                 ...payload,
                 ui: { ...initialState.ui, moduleActif: state.ui.moduleActif },
@@ -158,127 +217,391 @@ export function appReducer(state, action) {
             };
 
         case ACTION_TYPES.RESET_PROJECT:
-            // moduleActif préservé : "Nouveau projet" reste dans le module courant
             return {
                 ...initialState,
                 ui: { ...initialState.ui, moduleActif: state.ui.moduleActif },
             };
 
-        // ── LÉGENDE ITEMS ────────────────────────────────────────────────────
+        // ── PLAN GÉNÉRAL — IMAGE ─────────────────────────────────────────────
+        case ACTION_TYPES.LOAD_IMAGE:
+            return {
+                ...state,
+                planGeneral: { ...state.planGeneral, image: { ...payload } },
+                project: {
+                    ...state.project,
+                    id: state.project.id ?? crypto.randomUUID(),
+                    createdAt:
+                        state.project.createdAt ?? new Date().toISOString(),
+                },
+                ui: { ...state.ui, isDirty: true },
+            };
+
+        case ACTION_TYPES.CLEAR_IMAGE:
+            return {
+                ...state,
+                planGeneral: { ...initialState.planGeneral },
+                ui: { ...state.ui, isDirty: true },
+            };
+
+        // ── PLAN GÉNÉRAL — LÉGENDE ───────────────────────────────────────────
         case ACTION_TYPES.ADD_LEGEND_ITEM:
             return {
                 ...state,
-                legendItems: [
-                    ...state.legendItems,
-                    {
-                        rotation: 0,
-                        label: "",
-                        labelVisible: true,
-                        opacity: 1,
-                        width: 48,
-                        height: 48,
-                        zIndex: state.legendItems.length + 1,
-                        ...payload,
-                        id: crypto.randomUUID(),
-                    },
-                ],
+                planGeneral: {
+                    ...state.planGeneral,
+                    legendItems: [
+                        ...state.planGeneral.legendItems,
+                        {
+                            rotation: 0,
+                            label: "",
+                            labelVisible: true,
+                            opacity: 1,
+                            width: 48,
+                            height: 48,
+                            zIndex: state.planGeneral.legendItems.length + 1,
+                            ...payload,
+                            id: crypto.randomUUID(),
+                        },
+                    ],
+                },
                 ui: { ...state.ui, isDirty: true },
             };
 
         case ACTION_TYPES.UPDATE_LEGEND_ITEM:
             return {
                 ...state,
-                legendItems: state.legendItems.map((item) =>
-                    item.id === payload.id ? { ...item, ...payload } : item
-                ),
+                planGeneral: {
+                    ...state.planGeneral,
+                    legendItems: state.planGeneral.legendItems.map((item) =>
+                        item.id === payload.id ? { ...item, ...payload } : item
+                    ),
+                },
                 ui: { ...state.ui, isDirty: true },
             };
 
         case ACTION_TYPES.REMOVE_LEGEND_ITEM:
             return {
                 ...state,
-                legendItems: state.legendItems.filter((i) => i.id !== payload),
+                planGeneral: {
+                    ...state.planGeneral,
+                    legendItems: state.planGeneral.legendItems.filter(
+                        (i) => i.id !== payload
+                    ),
+                },
                 ui: { ...state.ui, isDirty: true },
             };
 
         case ACTION_TYPES.DUPLICATE_LEGEND_ITEM: {
-            const source = state.legendItems.find((i) => i.id === payload);
+            const source = state.planGeneral.legendItems.find(
+                (i) => i.id === payload
+            );
             if (!source) return state;
             return {
                 ...state,
-                legendItems: [
-                    ...state.legendItems,
-                    {
-                        ...source,
-                        id: crypto.randomUUID(),
-                        x: source.x + 2,
-                        y: source.y + 2,
-                    },
-                ],
+                planGeneral: {
+                    ...state.planGeneral,
+                    legendItems: [
+                        ...state.planGeneral.legendItems,
+                        {
+                            ...source,
+                            id: crypto.randomUUID(),
+                            x: source.x + 2,
+                            y: source.y + 2,
+                        },
+                    ],
+                },
                 ui: { ...state.ui, isDirty: true },
             };
         }
 
-        // ── CONTOURS ─────────────────────────────────────────────────────────
-        case ACTION_TYPES.ADD_CONTOUR_PATH:
+        // ── PLAN GÉNÉRAL — CONTOURS ──────────────────────────────────────────
+        case ACTION_TYPES.ADD_CONTOUR_PATH: {
+            const newId = crypto.randomUUID();
             return {
                 ...state,
-                contourPaths: [
-                    ...state.contourPaths,
-                    { ...payload, id: crypto.randomUUID() },
-                ],
+                planGeneral: {
+                    ...state.planGeneral,
+                    contourPaths: [
+                        ...state.planGeneral.contourPaths,
+                        { ...payload, id: newId, points: [payload.firstPoint] },
+                    ],
+                },
                 ui: {
                     ...state.ui,
-                    activeDrawingPathId: payload.id ?? null,
+                    activeDrawingPathId: newId,
                     isDirty: true,
                 },
             };
+        }
 
         case ACTION_TYPES.ADD_CONTOUR_POINT:
             return {
                 ...state,
-                contourPaths: state.contourPaths.map((p) =>
-                    p.id === payload.pathId
-                        ? { ...p, points: [...p.points, payload.point] }
-                        : p
-                ),
+                planGeneral: {
+                    ...state.planGeneral,
+                    contourPaths: state.planGeneral.contourPaths.map((p) =>
+                        p.id === payload.id
+                            ? { ...p, points: [...p.points, payload.point] }
+                            : p
+                    ),
+                },
                 ui: { ...state.ui, isDirty: true },
             };
 
         case ACTION_TYPES.CLOSE_CONTOUR_PATH:
             return {
                 ...state,
-                contourPaths: state.contourPaths.map((p) =>
-                    p.id === payload
-                        ? { ...p, closed: true, isDrawing: false }
-                        : p
-                ),
+                planGeneral: {
+                    ...state.planGeneral,
+                    contourPaths: state.planGeneral.contourPaths.map((p) =>
+                        p.id === payload
+                            ? { ...p, closed: true, isDrawing: false }
+                            : p
+                    ),
+                },
                 ui: { ...state.ui, activeDrawingPathId: null, isDirty: true },
             };
 
         case ACTION_TYPES.UPDATE_CONTOUR_PATH:
             return {
                 ...state,
-                contourPaths: state.contourPaths.map((p) =>
-                    p.id === payload.id ? { ...p, ...payload } : p
-                ),
+                planGeneral: {
+                    ...state.planGeneral,
+                    contourPaths: state.planGeneral.contourPaths.map((p) =>
+                        p.id === payload.id ? { ...p, ...payload } : p
+                    ),
+                },
                 ui: { ...state.ui, isDirty: true },
             };
 
         case ACTION_TYPES.REMOVE_CONTOUR_PATH:
             return {
                 ...state,
-                contourPaths: state.contourPaths.filter(
-                    (p) => p.id !== payload
-                ),
+                planGeneral: {
+                    ...state.planGeneral,
+                    contourPaths: state.planGeneral.contourPaths.filter(
+                        (p) => p.id !== payload
+                    ),
+                },
                 ui: { ...state.ui, isDirty: true },
             };
 
         case ACTION_TYPES.UPDATE_CONTOUR_POINT:
             return {
                 ...state,
-                contourPaths: state.contourPaths.map((p) =>
-                    p.id === payload.pathId
+                planGeneral: {
+                    ...state.planGeneral,
+                    contourPaths: state.planGeneral.contourPaths.map((p) =>
+                        p.id === payload.id
+                            ? {
+                                  ...p,
+                                  points: p.points.map((pt, i) =>
+                                      i === payload.index ? payload.point : pt
+                                  ),
+                              }
+                            : p
+                    ),
+                },
+                ui: { ...state.ui, isDirty: true },
+            };
+
+        // ── PLAN DES NIVEAUX — NIVEAUX ───────────────────────────────────────
+        case ACTION_TYPES.PN_ADD_NIVEAU: {
+            const newNiveau = {
+                id: crypto.randomUUID(),
+                nom: payload.nom || "Nouveau niveau",
+                image: { ...EMPTY_IMAGE },
+                legendItems: [],
+                contourPaths: [],
+                photos: [],
+            };
+            return {
+                ...state,
+                planNiveaux: {
+                    niveaux: [...state.planNiveaux.niveaux, newNiveau],
+                    activeNiveauId: newNiveau.id,
+                },
+                project: {
+                    ...state.project,
+                    id: state.project.id ?? crypto.randomUUID(),
+                    createdAt:
+                        state.project.createdAt ?? new Date().toISOString(),
+                },
+                ui: { ...state.ui, isDirty: true },
+            };
+        }
+
+        case ACTION_TYPES.PN_REMOVE_NIVEAU: {
+            const remaining = state.planNiveaux.niveaux.filter(
+                (n) => n.id !== payload
+            );
+            const activeId =
+                state.planNiveaux.activeNiveauId === payload
+                    ? (remaining[0]?.id ?? null)
+                    : state.planNiveaux.activeNiveauId;
+            return {
+                ...state,
+                planNiveaux: { niveaux: remaining, activeNiveauId: activeId },
+                ui: { ...state.ui, isDirty: true },
+            };
+        }
+
+        case ACTION_TYPES.PN_UPDATE_NIVEAU:
+            return {
+                ...state,
+                planNiveaux: {
+                    ...state.planNiveaux,
+                    niveaux: state.planNiveaux.niveaux.map((n) =>
+                        n.id === payload.id ? { ...n, ...payload } : n
+                    ),
+                },
+                ui: { ...state.ui, isDirty: true },
+            };
+
+        case ACTION_TYPES.PN_SET_ACTIVE_NIVEAU:
+            return {
+                ...state,
+                planNiveaux: {
+                    ...state.planNiveaux,
+                    activeNiveauId: payload,
+                },
+                ui: {
+                    ...state.ui,
+                    selectedTool: "select",
+                    selectedSymbolKey: null,
+                    selectedItemId: null,
+                    activeDrawingPathId: null,
+                    zoom: 1,
+                    panOffset: { x: 0, y: 0 },
+                },
+            };
+
+        case ACTION_TYPES.PN_LOAD_IMAGE:
+            return updateActiveNiveau(state, (n) => ({
+                ...n,
+                image: { ...payload },
+            }));
+
+        // ── PLAN DES NIVEAUX — LÉGENDE ───────────────────────────────────────
+        case ACTION_TYPES.PN_ADD_LEGEND_ITEM:
+            return updateActiveNiveau(state, (n) => ({
+                ...n,
+                legendItems: [
+                    ...n.legendItems,
+                    {
+                        rotation: 0,
+                        opacity: 1,
+                        zIndex: n.legendItems.length + 1,
+                        numero:
+                            payload.numero ??
+                            nextNumero(n.legendItems),
+                        ...payload,
+                        id: crypto.randomUUID(),
+                    },
+                ],
+            }));
+
+        case ACTION_TYPES.PN_UPDATE_LEGEND_ITEM:
+            return updateActiveNiveau(state, (n) => ({
+                ...n,
+                legendItems: n.legendItems.map((item) =>
+                    item.id === payload.id ? { ...item, ...payload } : item
+                ),
+            }));
+
+        case ACTION_TYPES.PN_REMOVE_LEGEND_ITEM:
+            return updateActiveNiveau(state, (n) => ({
+                ...n,
+                legendItems: n.legendItems.filter((i) => i.id !== payload),
+            }));
+
+        case ACTION_TYPES.PN_DUPLICATE_LEGEND_ITEM: {
+            const activeId = state.planNiveaux.activeNiveauId;
+            if (!activeId) return state;
+            const activeN = state.planNiveaux.niveaux.find(
+                (n) => n.id === activeId
+            );
+            if (!activeN) return state;
+            const src = activeN.legendItems.find((i) => i.id === payload);
+            if (!src) return state;
+            return updateActiveNiveau(state, (n) => ({
+                ...n,
+                legendItems: [
+                    ...n.legendItems,
+                    {
+                        ...src,
+                        id: crypto.randomUUID(),
+                        x: src.x != null ? src.x + 2 : undefined,
+                        y: src.y != null ? src.y + 2 : undefined,
+                        numero: nextNumero(n.legendItems),
+                    },
+                ],
+            }));
+        }
+
+        // ── PLAN DES NIVEAUX — CONTOURS ──────────────────────────────────────
+        case ACTION_TYPES.PN_ADD_CONTOUR_PATH: {
+            const newId = crypto.randomUUID();
+            const updated = updateActiveNiveau(state, (n) => ({
+                ...n,
+                contourPaths: [
+                    ...n.contourPaths,
+                    { ...payload, id: newId, points: [payload.firstPoint] },
+                ],
+            }));
+            return {
+                ...updated,
+                ui: {
+                    ...updated.ui,
+                    activeDrawingPathId: newId,
+                },
+            };
+        }
+
+        case ACTION_TYPES.PN_ADD_CONTOUR_POINT:
+            return updateActiveNiveau(state, (n) => ({
+                ...n,
+                contourPaths: n.contourPaths.map((p) =>
+                    p.id === payload.id
+                        ? { ...p, points: [...p.points, payload.point] }
+                        : p
+                ),
+            }));
+
+        case ACTION_TYPES.PN_CLOSE_CONTOUR_PATH: {
+            const updated = updateActiveNiveau(state, (n) => ({
+                ...n,
+                contourPaths: n.contourPaths.map((p) =>
+                    p.id === payload
+                        ? { ...p, closed: true, isDrawing: false }
+                        : p
+                ),
+            }));
+            return {
+                ...updated,
+                ui: { ...updated.ui, activeDrawingPathId: null },
+            };
+        }
+
+        case ACTION_TYPES.PN_UPDATE_CONTOUR_PATH:
+            return updateActiveNiveau(state, (n) => ({
+                ...n,
+                contourPaths: n.contourPaths.map((p) =>
+                    p.id === payload.id ? { ...p, ...payload } : p
+                ),
+            }));
+
+        case ACTION_TYPES.PN_REMOVE_CONTOUR_PATH:
+            return updateActiveNiveau(state, (n) => ({
+                ...n,
+                contourPaths: n.contourPaths.filter((p) => p.id !== payload),
+            }));
+
+        case ACTION_TYPES.PN_UPDATE_CONTOUR_POINT:
+            return updateActiveNiveau(state, (n) => ({
+                ...n,
+                contourPaths: n.contourPaths.map((p) =>
+                    p.id === payload.id
                         ? {
                               ...p,
                               points: p.points.map((pt, i) =>
@@ -287,18 +610,39 @@ export function appReducer(state, action) {
                           }
                         : p
                 ),
-                ui: { ...state.ui, isDirty: true },
-            };
+            }));
+
+        // ── PLAN DES NIVEAUX — PHOTOS ────────────────────────────────────────
+        case ACTION_TYPES.PN_ADD_PHOTO:
+            return updateActiveNiveau(state, (n) => ({
+                ...n,
+                photos: [
+                    ...n.photos,
+                    { id: crypto.randomUUID(), ...payload },
+                ],
+            }));
+
+        case ACTION_TYPES.PN_REMOVE_PHOTO:
+            return updateActiveNiveau(state, (n) => ({
+                ...n,
+                photos: n.photos.filter((p) => p.id !== payload),
+                legendItems: n.legendItems.map((item) =>
+                    item.photoId === payload
+                        ? { ...item, photoId: null }
+                        : item
+                ),
+            }));
 
         // ── UI ───────────────────────────────────────────────────────────────
         case ACTION_TYPES.SET_SELECTED_TOOL: {
+            const pg = state.planGeneral;
             const cleaned = cleanActiveDrawing(
-                state.contourPaths,
+                pg.contourPaths,
                 state.ui.activeDrawingPathId
             );
             return {
                 ...state,
-                contourPaths: cleaned,
+                planGeneral: { ...pg, contourPaths: cleaned },
                 ui: {
                     ...state.ui,
                     selectedTool: payload,
@@ -313,13 +657,14 @@ export function appReducer(state, action) {
         }
 
         case ACTION_TYPES.SET_SELECTED_SYMBOL: {
+            const pg = state.planGeneral;
             const cleaned = cleanActiveDrawing(
-                state.contourPaths,
+                pg.contourPaths,
                 state.ui.activeDrawingPathId
             );
             return {
                 ...state,
-                contourPaths: cleaned,
+                planGeneral: { ...pg, contourPaths: cleaned },
                 ui: {
                     ...state.ui,
                     selectedSymbolKey: payload,

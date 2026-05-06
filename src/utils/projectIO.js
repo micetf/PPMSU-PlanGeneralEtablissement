@@ -31,9 +31,12 @@ export function exportProject(state) {
         version: FORMAT_VERSION,
         exportedAt: new Date().toISOString(),
         project: state.project,
-        image: state.image,
-        legendItems: state.legendItems,
-        contourPaths: state.contourPaths,
+        planGeneral: state.planGeneral,
+        planNiveaux: state.planNiveaux,
+        // Champs legacy v1 pour rétrocompatibilité lecture
+        image: state.planGeneral.image,
+        legendItems: state.planGeneral.legendItems,
+        contourPaths: state.planGeneral.contourPaths,
     };
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], {

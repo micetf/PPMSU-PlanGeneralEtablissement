@@ -190,7 +190,7 @@ function drawLegendItems(ctx, legendItems, w, h, imageCache) {
  * @returns {Promise<void>}
  */
 export async function exportToPng(state, fileName = "plan-ppms.png") {
-    const { image, legendItems, contourPaths } = state;
+    const { image, legendItems, contourPaths } = state.planGeneral;
 
     const bgImage = await loadImage(image.src);
     const w = image.naturalWidth;

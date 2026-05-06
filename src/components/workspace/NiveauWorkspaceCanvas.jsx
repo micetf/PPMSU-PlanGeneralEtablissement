@@ -1,19 +1,21 @@
 /**
- * @fileoverview Canvas principal avec couches image, symboles et contours
+ * @fileoverview Canvas du module Plan des Niveaux.
+ * Lit l'image du niveau actif ; superpose ContourLayer, ArrowLayer, NiveauSymbolLayer.
  */
 import { useRef, useEffect, useCallback, useState } from "react";
 import PropTypes from "prop-types";
 import { useApp } from "../../hooks/useApp";
 import { useZoomPan } from "../../hooks/useZoomPan";
-import { SymbolLayer } from "./SymbolLayer";
 import { ContourLayer } from "./ContourLayer";
+import { NiveauSymbolLayer } from "./NiveauSymbolLayer";
+import { ArrowLayer } from "./ArrowLayer";
 
 function ZoomIndicator({ zoom }) {
     return (
         <div
             className="absolute bottom-3 right-3 bg-white/80 backdrop-blur-sm
-                    rounded-lg px-3 py-1 text-xs text-slate-600 font-mono
-                    shadow select-none pointer-events-none"
+                       rounded-lg px-3 py-1 text-xs text-slate-600 font-mono
+                       shadow select-none pointer-events-none"
         >
             {Math.round(zoom * 100)} %
         </div>
@@ -42,7 +44,7 @@ function ZoomControls({ onZoomIn, onZoomOut, onReset }) {
                 type="button"
                 onClick={onReset}
                 className={btn}
-                aria-label="Réinitialiser"
+                aria-label="Réinitialiser le zoom"
             >
                 ⊙
             </button>
@@ -64,45 +66,14 @@ ZoomControls.propTypes = {
 };
 
 /**
- * Écran d'erreur affiché si l'image de fond est corrompue
- * @param {{ onReset: Function }} props
- */
-function ImageErrorScreen({ onReset }) {
-    return (
-        <div
-            className="absolute inset-0 flex flex-col items-center justify-center
-                    gap-4 bg-slate-100"
-        >
-            <div className="text-4xl">🖼️</div>
-            <div className="text-center">
-                <p className="text-sm font-semibold text-slate-700">
-                    Image inaccessible
-                </p>
-                <p className="mt-1 text-xs text-slate-500 max-w-xs">
-                    L'image de fond du projet n'a pas pu être chargée. Elle est
-                    peut-être corrompue ou trop volumineuse.
-                </p>
-            </div>
-            <button
-                type="button"
-                onClick={onReset}
-                className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-500 text-white
-                   hover:bg-blue-600 focus:outline-none focus-visible:ring-2
-                   focus-visible:ring-blue-400 transition-colors"
-            >
-                Retour à l'accueil
-            </button>
-        </div>
-    );
-}
-ImageErrorScreen.propTypes = { onReset: PropTypes.func.isRequired };
-
-/**
- * @param {{ cursorPoint:object|null, onMouseMove:Function,
+ * @param {{ cursorPoint:object|null, pendingArrowStart:object|null,
+ *           arrowCursorPos:object|null, onMouseMove:Function,
  *           onCanvasClick:Function, onDblClick:Function }} props
  */
-export function WorkspaceCanvas({
+export function NiveauWorkspaceCanvas({
     cursorPoint,
+    pendingArrowStart,
+    arrowCursorPos,
     onMouseMove,
     onCanvasClick,
     onDblClick,
@@ -113,12 +84,17 @@ export function WorkspaceCanvas({
         useZoomPan();
     const [imgError, setImgError] = useState(false);
 
-    const { src, naturalWidth, naturalHeight } = state.planGeneral.image;
+    const activeNiveau = state.planNiveaux.niveaux.find(
+        (n) => n.id === state.planNiveaux.activeNiveauId
+    );
+
+    const { src, naturalWidth, naturalHeight } = activeNiveau?.image ?? {};
     const { zoom, panOffset } = state.ui;
-    const projectId = state.project.id;
+    const activeNiveauId = state.planNiveaux.activeNiveauId;
 
     useEffect(() => {
-        if (!src || !containerRef.current) return;
+        if (!src || !naturalWidth || !naturalHeight || !containerRef.current)
+            return;
         const { clientWidth, clientHeight } = containerRef.current;
         const initZoom =
             Math.min(clientWidth / naturalWidth, clientHeight / naturalHeight) *
@@ -128,7 +104,7 @@ export function WorkspaceCanvas({
             x: (clientWidth - naturalWidth * initZoom) / 2,
             y: (clientHeight - naturalHeight * initZoom) / 2,
         });
-    }, [src, projectId]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [src, activeNiveauId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         const el = containerRef.current;
@@ -138,7 +114,7 @@ export function WorkspaceCanvas({
     }, [handleWheel]);
 
     const handleReset = useCallback(() => {
-        if (!containerRef.current) return;
+        if (!containerRef.current || !naturalWidth || !naturalHeight) return;
         const { clientWidth, clientHeight } = containerRef.current;
         const initZoom =
             Math.min(clientWidth / naturalWidth, clientHeight / naturalHeight) *
@@ -173,10 +149,8 @@ export function WorkspaceCanvas({
             onMouseLeave={handleMouseUp}
             onClick={onCanvasClick}
             onDoubleClick={onDblClick}
-            aria-label="Canvas de légende PPMS"
+            aria-label="Canvas Plan des Niveaux"
         >
-            {imgError && <ImageErrorScreen onReset={actions.resetProject} />}
-
             {!imgError && (
                 <div
                     className="absolute origin-top-left"
@@ -186,12 +160,10 @@ export function WorkspaceCanvas({
                         height: imgH,
                     }}
                 >
-                    {/* key force le remontage si l'image ou le projet change
-              → réinitialise imgError sans passer par un effet */}
                     <img
-                        key={`${src}-${projectId}`}
+                        key={`${src}-${activeNiveauId}`}
                         src={src}
-                        alt="Vue aérienne de l'établissement"
+                        alt={`Plan d'intervention — ${activeNiveau?.nom}`}
                         width={imgW}
                         height={imgH}
                         className="absolute inset-0 select-none"
@@ -202,12 +174,32 @@ export function WorkspaceCanvas({
                         imageWidth={imgW}
                         imageHeight={imgH}
                         cursorPoint={cursorPoint}
-                        contourPaths={state.planGeneral.contourPaths}
+                        contourPaths={activeNiveau?.contourPaths ?? []}
                         onUpdatePoint={(id, idx, pt) =>
-                            actions.updateContourPoint(id, idx, pt)
+                            actions.updateNiveauContourPoint(id, idx, pt)
                         }
                     />
-                    <SymbolLayer imageWidth={imgW} imageHeight={imgH} />
+                    <NiveauSymbolLayer imageWidth={imgW} imageHeight={imgH} />
+                    <ArrowLayer
+                        imageWidth={imgW}
+                        imageHeight={imgH}
+                        pendingArrowStart={pendingArrowStart}
+                        arrowCursorPos={arrowCursorPos}
+                    />
+                </div>
+            )}
+
+            {imgError && (
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
+                    <div className="text-center p-8">
+                        <p className="text-4xl mb-4">🖼️</p>
+                        <p className="text-sm font-semibold text-slate-700">
+                            Image inaccessible
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500 max-w-xs">
+                            Le plan d'intervention de ce niveau n'a pas pu être chargé.
+                        </p>
+                    </div>
                 </div>
             )}
 
@@ -225,15 +217,19 @@ export function WorkspaceCanvas({
     );
 }
 
-WorkspaceCanvas.propTypes = {
+NiveauWorkspaceCanvas.propTypes = {
     cursorPoint: PropTypes.object,
+    pendingArrowStart: PropTypes.object,
+    arrowCursorPos: PropTypes.object,
     onMouseMove: PropTypes.func,
     onCanvasClick: PropTypes.func,
     onDblClick: PropTypes.func,
 };
 
-WorkspaceCanvas.defaultProps = {
+NiveauWorkspaceCanvas.defaultProps = {
     cursorPoint: null,
+    pendingArrowStart: null,
+    arrowCursorPos: null,
     onMouseMove: null,
     onCanvasClick: null,
     onDblClick: null,

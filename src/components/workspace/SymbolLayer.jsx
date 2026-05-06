@@ -157,7 +157,7 @@ function LegendItem({ item, imageWidth, imageHeight }) {
 
     const { onDragStart } = useDrag({
         onMove: (dx, dy) => {
-            const { naturalWidth, naturalHeight } = state.image;
+            const { naturalWidth, naturalHeight } = state.planGeneral.image;
             actions.updateLegendItem(item.id, {
                 x: Math.max(
                     0,
@@ -267,7 +267,7 @@ export function SymbolLayer({ imageWidth, imageHeight }) {
     const { state } = useApp();
     return (
         <>
-            {state.legendItems.map((item) => (
+            {state.planGeneral.legendItems.map((item) => (
                 <LegendItem
                     key={item.id}
                     item={item}

@@ -1,24 +1,27 @@
 /**
- * @fileoverview Hook de gestion du tracé de contours polygonaux (Plan Général)
- * Clic = ajouter un point, double-clic ou clic sur point départ = fermer
+ * @fileoverview Hook de tracé de contours polygonaux pour le module Plan des Niveaux
+ * Adapté de useContourDraw.js — opère sur le niveau actif.
  */
 import { useCallback, useState } from "react";
 import { useApp } from "./useApp";
-import { getSymbolByKey, ELEMENT_TYPES } from "../constants/ppmsLegend";
+import { getNiveauSymbolByKey, NIVEAUX_ELEMENT_TYPES } from "../constants/niveauxLegend";
 
-/** Rayon de snap vers le point de départ (px écran) */
 const SNAP_RADIUS_PX = 12;
 
-export function useContourDraw() {
+export function useNiveauContourDraw() {
     const { state, actions } = useApp();
     const [cursorPoint, setCursorPoint] = useState(null);
 
-    /** Convertit un événement souris en coordonnées % image */
+    const activeNiveau = state.planNiveaux.niveaux.find(
+        (n) => n.id === state.planNiveaux.activeNiveauId
+    );
+
     const toImagePct = useCallback(
         (e) => {
+            if (!activeNiveau) return null;
             const rect = e.currentTarget.getBoundingClientRect();
             const { zoom, panOffset } = state.ui;
-            const { naturalWidth, naturalHeight } = state.planGeneral.image;
+            const { naturalWidth, naturalHeight } = activeNiveau.image;
             const imgX = (e.clientX - rect.left - panOffset.x) / zoom;
             const imgY = (e.clientY - rect.top - panOffset.y) / zoom;
             return {
@@ -26,28 +29,22 @@ export function useContourDraw() {
                 y: (imgY / naturalHeight) * 100,
             };
         },
-        [state.ui, state.planGeneral.image]
+        [state.ui, activeNiveau]
     );
 
     const isNearFirstPoint = useCallback(
         (e, firstPoint) => {
+            if (!activeNiveau) return false;
             const rect = e.currentTarget.getBoundingClientRect();
             const { zoom, panOffset } = state.ui;
-            const { naturalWidth, naturalHeight } = state.planGeneral.image;
-
+            const { naturalWidth, naturalHeight } = activeNiveau.image;
             const firstPxX =
-                (firstPoint.x / 100) * naturalWidth * zoom +
-                panOffset.x +
-                rect.left;
+                (firstPoint.x / 100) * naturalWidth * zoom + panOffset.x + rect.left;
             const firstPxY =
-                (firstPoint.y / 100) * naturalHeight * zoom +
-                panOffset.y +
-                rect.top;
-
-            const dist = Math.hypot(e.clientX - firstPxX, e.clientY - firstPxY);
-            return dist <= SNAP_RADIUS_PX;
+                (firstPoint.y / 100) * naturalHeight * zoom + panOffset.y + rect.top;
+            return Math.hypot(e.clientX - firstPxX, e.clientY - firstPxY) <= SNAP_RADIUS_PX;
         },
-        [state.ui, state.planGeneral.image]
+        [state.ui, activeNiveau]
     );
 
     const handleCanvasMouseMove = useCallback(
@@ -64,26 +61,21 @@ export function useContourDraw() {
 
     const handleCanvasClick = useCallback(
         (e) => {
-            const { selectedTool, selectedSymbolKey, activeDrawingPathId } =
-                state.ui;
+            const { selectedTool, selectedSymbolKey, activeDrawingPathId } = state.ui;
             if (selectedTool !== "draw" || !selectedSymbolKey) return;
 
-            const symbol = getSymbolByKey(selectedSymbolKey);
-            if (!symbol) return;
-
-            const isDrawType =
-                symbol.type === ELEMENT_TYPES.CONTOUR ||
-                symbol.type === ELEMENT_TYPES.ZONE;
-            if (!isDrawType) return;
+            const symbol = getNiveauSymbolByKey(selectedSymbolKey);
+            if (!symbol || symbol.type !== NIVEAUX_ELEMENT_TYPES.ZMS_ZONE) return;
 
             const point = toImagePct(e);
+            if (!point) return;
 
             if (!activeDrawingPathId) {
-                actions.startContourPath(selectedSymbolKey, point);
+                actions.startNiveauContourPath(selectedSymbolKey, point);
                 return;
             }
 
-            const activePath = state.planGeneral.contourPaths.find(
+            const activePath = activeNiveau?.contourPaths.find(
                 (p) => p.id === activeDrawingPathId
             );
             if (
@@ -92,19 +84,13 @@ export function useContourDraw() {
                 isNearFirstPoint(e, activePath.points[0])
             ) {
                 setCursorPoint(null);
-                actions.closeContourPath(activeDrawingPathId);
+                actions.closeNiveauContourPath(activeDrawingPathId);
                 return;
             }
 
-            actions.addContourPoint(activeDrawingPathId, point);
+            actions.addNiveauContourPoint(activeDrawingPathId, point);
         },
-        [
-            state.ui,
-            state.planGeneral.contourPaths,
-            actions,
-            toImagePct,
-            isNearFirstPoint,
-        ]
+        [state.ui, activeNiveau, actions, toImagePct, isNearFirstPoint]
     );
 
     const handleCanvasDblClick = useCallback(
@@ -113,7 +99,7 @@ export function useContourDraw() {
             const { activeDrawingPathId } = state.ui;
             if (!activeDrawingPathId) return;
             setCursorPoint(null);
-            actions.closeContourPath(activeDrawingPathId);
+            actions.closeNiveauContourPath(activeDrawingPathId);
         },
         [state.ui, actions]
     );

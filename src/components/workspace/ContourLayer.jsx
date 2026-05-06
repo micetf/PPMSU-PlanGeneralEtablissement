@@ -13,27 +13,31 @@ const toSvgPoints = (pts, w, h) =>
 /**
  * Nœud draggable d'un tracé fermé
  */
-function DraggableNode({ point, index, pathId, imageWidth, imageHeight }) {
-    const { state, actions } = useApp();
+function DraggableNode({
+    point,
+    index,
+    pathId,
+    imageWidth,
+    imageHeight,
+    onUpdatePoint,
+}) {
     const dragOrigin = useRef({ x: point.x, y: point.y });
 
     const { onDragStart } = useDrag({
         onMove: (dx, dy) => {
-            const { zoom } = state.ui;
-            const { naturalWidth, naturalHeight } = state.image;
-            actions.updateContourPoint(pathId, index, {
+            onUpdatePoint(pathId, index, {
                 x: Math.max(
                     0,
                     Math.min(
                         100,
-                        dragOrigin.current.x + (dx / zoom / naturalWidth) * 100
+                        dragOrigin.current.x + (dx / imageWidth) * 100
                     )
                 ),
                 y: Math.max(
                     0,
                     Math.min(
                         100,
-                        dragOrigin.current.y + (dy / zoom / naturalHeight) * 100
+                        dragOrigin.current.y + (dy / imageHeight) * 100
                     )
                 ),
             });
@@ -65,6 +69,7 @@ DraggableNode.propTypes = {
     pathId: PropTypes.string.isRequired,
     imageWidth: PropTypes.number.isRequired,
     imageHeight: PropTypes.number.isRequired,
+    onUpdatePoint: PropTypes.func.isRequired,
 };
 
 function ContourPath({
@@ -74,6 +79,7 @@ function ContourPath({
     cursorPoint,
     isSelected,
     onSelect,
+    onUpdatePoint,
     selectable,
 }) {
     const pts = path.points;
@@ -152,6 +158,7 @@ function ContourPath({
                                 pathId={path.id}
                                 imageWidth={imageWidth}
                                 imageHeight={imageHeight}
+                                onUpdatePoint={onUpdatePoint}
                             />
                         ))}
                 </>
@@ -240,6 +247,7 @@ ContourPath.propTypes = {
     cursorPoint: PropTypes.object,
     isSelected: PropTypes.bool,
     onSelect: PropTypes.func,
+    onUpdatePoint: PropTypes.func,
     selectable: PropTypes.bool,
 };
 
@@ -247,12 +255,19 @@ ContourPath.defaultProps = {
     cursorPoint: null,
     isSelected: false,
     onSelect: () => {},
+    onUpdatePoint: () => {},
     selectable: false,
 };
 
-export function ContourLayer({ imageWidth, imageHeight, cursorPoint }) {
+export function ContourLayer({
+    imageWidth,
+    imageHeight,
+    cursorPoint,
+    contourPaths,
+    onUpdatePoint,
+}) {
     const { state, actions } = useApp();
-    if (!state.contourPaths.length) return null;
+    if (!contourPaths.length) return null;
 
     const { activeDrawingPathId, selectedItemId, selectedTool } = state.ui;
     const selectable = selectedTool === "select";
@@ -266,7 +281,7 @@ export function ContourLayer({ imageWidth, imageHeight, cursorPoint }) {
             overflow="visible"
             style={{ pointerEvents: "none" }}
         >
-            {state.contourPaths.map((path) => (
+            {contourPaths.map((path) => (
                 <ContourPath
                     key={path.id}
                     path={path}
@@ -277,6 +292,7 @@ export function ContourLayer({ imageWidth, imageHeight, cursorPoint }) {
                     }
                     isSelected={selectedItemId === path.id}
                     onSelect={(id) => actions.selectItem(id)}
+                    onUpdatePoint={onUpdatePoint}
                     selectable={selectable}
                 />
             ))}
@@ -288,6 +304,8 @@ ContourLayer.propTypes = {
     imageWidth: PropTypes.number.isRequired,
     imageHeight: PropTypes.number.isRequired,
     cursorPoint: PropTypes.object,
+    contourPaths: PropTypes.array.isRequired,
+    onUpdatePoint: PropTypes.func.isRequired,
 };
 
 ContourLayer.defaultProps = { cursorPoint: null };

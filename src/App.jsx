@@ -9,12 +9,18 @@ import { AppProvider } from "./contexts/AppProvider";
 import { MiCetFNavBar } from "./components/layout/MiCetFNavBar";
 import { HomeScreen } from "./components/ui/HomeScreen";
 import { PlanGeneralSetup } from "./components/ui/PlanGeneralSetup";
+import { PlanNiveauxSetup } from "./components/ui/PlanNiveauxSetup";
 import { LegendToolbar } from "./components/ui/LegendToolbar";
+import { NiveauxToolbar } from "./components/ui/NiveauxToolbar";
+import { NiveauxList } from "./components/ui/NiveauxList";
 import { PropertiesPanel } from "./components/ui/PropertiesPanel";
 import { TopBar } from "./components/ui/TopBar";
 import { WorkspaceCanvas } from "./components/workspace/WorkspaceCanvas";
+import { NiveauWorkspaceCanvas } from "./components/workspace/NiveauWorkspaceCanvas";
 import { useApp } from "./hooks/useApp";
 import { useContourDraw } from "./hooks/useContourDraw";
+import { useNiveauContourDraw } from "./hooks/useNiveauContourDraw";
+import { useArrowDraw } from "./hooks/useArrowDraw";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 
 /** @type {{ appTitle:string, paypalButtonId:string, contactEmail:string }} */
@@ -46,7 +52,7 @@ function WorkspaceLayout() {
         if (selectedTool === "place" && selectedSymbolKey) {
             const rect = e.currentTarget.getBoundingClientRect();
             const { zoom, panOffset } = state.ui;
-            const { naturalWidth, naturalHeight } = state.image;
+            const { naturalWidth, naturalHeight } = state.planGeneral.image;
             const imgX = (e.clientX - rect.left - panOffset.x) / zoom;
             const imgY = (e.clientY - rect.top - panOffset.y) / zoom;
             actions.addLegendItem(
@@ -79,12 +85,94 @@ function WorkspaceLayout() {
     );
 }
 
+// ── Workspace Plan des Niveaux ────────────────────────────────────────────────
+
+function NiveauWorkspaceLayout() {
+    const { state, actions } = useApp();
+    useKeyboardShortcuts();
+
+    const {
+        cursorPoint: contourCursor,
+        handleCanvasClick: niveauContourClick,
+        handleCanvasDblClick: niveauContourDblClick,
+        handleCanvasMouseMove: niveauContourMouseMove,
+    } = useNiveauContourDraw();
+
+    const {
+        pendingStart,
+        cursorPos: arrowCursor,
+        handleCanvasClick: arrowClick,
+        handleCanvasMouseMove: arrowMouseMove,
+    } = useArrowDraw();
+
+    const handleCanvasClick = (e) => {
+        const { selectedTool, selectedSymbolKey } = state.ui;
+
+        if (selectedTool === "draw") {
+            niveauContourClick(e);
+            return;
+        }
+        if (selectedTool === "arrow") {
+            arrowClick(e);
+            return;
+        }
+        if (selectedTool === "place" && selectedSymbolKey) {
+            // Marqueur photo ou annotation : placement simple
+            const rect = e.currentTarget.getBoundingClientRect();
+            const { zoom, panOffset } = state.ui;
+            const activeNiveau = state.planNiveaux.niveaux.find(
+                (n) => n.id === state.planNiveaux.activeNiveauId
+            );
+            if (!activeNiveau) return;
+            const { naturalWidth, naturalHeight } = activeNiveau.image;
+            const imgX = (e.clientX - rect.left - panOffset.x) / zoom;
+            const imgY = (e.clientY - rect.top - panOffset.y) / zoom;
+            actions.addNiveauLegendItem(selectedSymbolKey, {
+                x: (imgX / naturalWidth) * 100,
+                y: (imgY / naturalHeight) * 100,
+                label: "",
+            });
+            return;
+        }
+        const tag = e.target.tagName.toLowerCase();
+        if (tag === "img" || tag === "div") actions.selectItem(null);
+    };
+
+    const handleMouseMove = (e) => {
+        const { selectedTool } = state.ui;
+        if (selectedTool === "draw") niveauContourMouseMove(e);
+        else if (selectedTool === "arrow") arrowMouseMove(e);
+    };
+
+    const handleDblClick = (e) => {
+        const { selectedTool } = state.ui;
+        if (selectedTool === "draw") niveauContourDblClick(e);
+    };
+
+    return (
+        <div className="flex flex-col h-screen overflow-hidden pt-10">
+            <TopBar />
+            <div className="flex flex-1 min-h-0 overflow-hidden">
+                <NiveauxList />
+                <div className="relative flex-1 min-w-0">
+                    <NiveauWorkspaceCanvas
+                        cursorPoint={contourCursor}
+                        pendingArrowStart={pendingStart}
+                        arrowCursorPos={arrowCursor}
+                        onMouseMove={handleMouseMove}
+                        onCanvasClick={handleCanvasClick}
+                        onDblClick={handleDblClick}
+                    />
+                    <PropertiesPanel />
+                </div>
+                <NiveauxToolbar />
+            </div>
+        </div>
+    );
+}
+
 // ── Placeholder modules à venir ───────────────────────────────────────────────
 
-/**
- * Écran temporaire pour les modules non encore développés
- * @param {{ titre: string, description: string }} props
- */
 function ModuleAVenir({ titre, description }) {
     const { actions } = useApp();
     return (
@@ -122,22 +210,24 @@ function AppRouter() {
     const { state } = useApp();
     const { moduleActif } = state.ui;
 
-    // Accueil : aucun module sélectionné
     if (!moduleActif) return <HomeScreen />;
 
     // Module 1 — Plan Général de l'École
     if (moduleActif === "planGeneral") {
-        return state.image.src ? <WorkspaceLayout /> : <PlanGeneralSetup />;
+        return state.planGeneral.image.src ? (
+            <WorkspaceLayout />
+        ) : (
+            <PlanGeneralSetup />
+        );
     }
 
-    // Module 2 — Plan des Niveaux (à venir)
+    // Module 2 — Plan des Niveaux
     if (moduleActif === "planNiveaux") {
-        return (
-            <ModuleAVenir
-                titre="Plan des Niveaux"
-                description="Ce module est en cours de développement. Il permettra d'annoter les plans d'intervention par niveau de bâtiment."
-            />
-        );
+        const { niveaux, activeNiveauId } = state.planNiveaux;
+        if (niveaux.length === 0) return <PlanNiveauxSetup />;
+        const activeNiveau = niveaux.find((n) => n.id === activeNiveauId);
+        if (!activeNiveau?.image.src) return <PlanNiveauxSetup />;
+        return <NiveauWorkspaceLayout />;
     }
 
     // Module 3 — Coupures Fluides (à venir)

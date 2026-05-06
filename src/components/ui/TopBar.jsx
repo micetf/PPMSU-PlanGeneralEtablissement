@@ -8,6 +8,7 @@ import { useProjectManager } from "../../hooks/useProjectManager";
 import { ProjectModal } from "./ProjectModal";
 import { ConfirmModal } from "./ConfirmModal";
 import { exportToPng } from "../../utils/exportCanvas";
+import { exportNiveauToPng } from "../../utils/exportNiveau";
 import { exportProject } from "../../utils/projectIO";
 import { ImportButton } from "./ImportButton";
 
@@ -57,7 +58,17 @@ export function TopBar() {
         handleNew,
     } = useProjectManager();
 
-    const hasImage = Boolean(state.image.src);
+    const moduleActif = state.ui.moduleActif;
+    const activeNiveau =
+        moduleActif === "planNiveaux"
+            ? state.planNiveaux.niveaux.find(
+                  (n) => n.id === state.planNiveaux.activeNiveauId
+              )
+            : null;
+    const hasImage =
+        moduleActif === "planNiveaux"
+            ? Boolean(activeNiveau?.image?.src)
+            : Boolean(state.planGeneral.image.src);
 
     /** Retour à l'accueil : confirmation si travail non sauvegardé */
     const handleBackClick = () => {
@@ -201,8 +212,8 @@ export function TopBar() {
                     </button>
                 )}
 
-                {/* Export PNG */}
-                {hasImage && (
+                {/* Export PNG — Plan Général */}
+                {hasImage && moduleActif !== "planNiveaux" && (
                     <button
                         type="button"
                         onClick={() =>
@@ -217,6 +228,23 @@ export function TopBar() {
                                    focus-visible:ring-2 focus-visible:ring-emerald-400"
                     >
                         📥 PNG
+                    </button>
+                )}
+
+                {/* Export PNG — Niveau actif */}
+                {hasImage && moduleActif === "planNiveaux" && (
+                    <button
+                        type="button"
+                        onClick={() =>
+                            exportNiveauToPng(activeNiveau, state.project)
+                        }
+                        title={`Exporter le niveau "${activeNiveau?.nom}" en PNG`}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
+                                   font-medium bg-emerald-500 text-white hover:bg-emerald-600
+                                   transition-colors focus:outline-none
+                                   focus-visible:ring-2 focus-visible:ring-emerald-400"
+                    >
+                        📥 PNG niveau
                     </button>
                 )}
             </header>

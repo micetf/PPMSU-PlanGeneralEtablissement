@@ -5,29 +5,21 @@ import { useReducer, useCallback } from "react";
 import { AppContext } from "./appContext";
 import { appReducer, initialState, ACTION_TYPES } from "../reducers/appReducer";
 import { getSymbolByKey, ELEMENT_TYPES } from "../constants/ppmsLegend";
+import { getNiveauSymbolByKey } from "../constants/niveauxLegend";
 import { storeImage, retrieveImage, removeImage } from "../utils/imageStore";
 import { importProject as parseImportFile } from "../utils/projectIO";
 
-/**
- * Fournisseur du contexte applicatif
- * @param {{ children: React.ReactNode }} props
- */
 export function AppProvider({ children }) {
     const [state, dispatch] = useReducer(appReducer, initialState);
 
     // ── NAVIGATION ─────────────────────────────────────────────────────────────
 
-    /**
-     * Active un module ou revient à l'accueil (null)
-     * @param {import('../reducers/appReducer').ModuleActif} module
-     */
     const setModule = useCallback((module) => {
         dispatch({ type: ACTION_TYPES.SET_MODULE, payload: module });
     }, []);
 
-    // ── IMAGE ──────────────────────────────────────────────────────────────────
+    // ── PLAN GÉNÉRAL — IMAGE ───────────────────────────────────────────────────
 
-    /** @param {File} file */
     const loadImage = useCallback((file) => {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -47,28 +39,17 @@ export function AppProvider({ children }) {
         reader.readAsDataURL(file);
     }, []);
 
-    // ── LÉGENDE ────────────────────────────────────────────────────────────────
+    // ── PLAN GÉNÉRAL — LÉGENDE ─────────────────────────────────────────────────
 
-    /**
-     * @param {string} symbolKey
-     * @param {number} x - % largeur image
-     * @param {number} y - % hauteur image
-     */
     const addLegendItem = useCallback((symbolKey, x, y) => {
         const symbol = getSymbolByKey(symbolKey);
         if (!symbol) return;
-
-        // Taille par défaut selon la nature du symbole :
-        // - pentagone (ZMS) : 80px
-        // - annotation (texte) : 14px (taille de police)
-        // - symbole image : 48px
         const defaultSize =
             symbol.shape === "pentagon"
                 ? 80
                 : symbol.type === ELEMENT_TYPES.TEXTE
                   ? 14
                   : 48;
-
         dispatch({
             type: ACTION_TYPES.ADD_LEGEND_ITEM,
             payload: {
@@ -83,7 +64,6 @@ export function AppProvider({ children }) {
         });
     }, []);
 
-    /** @param {string} id @param {object} changes */
     const updateLegendItem = useCallback((id, changes) => {
         dispatch({
             type: ACTION_TYPES.UPDATE_LEGEND_ITEM,
@@ -91,23 +71,20 @@ export function AppProvider({ children }) {
         });
     }, []);
 
-    /** @param {string} id */
     const removeLegendItem = useCallback(
         (id) =>
             dispatch({ type: ACTION_TYPES.REMOVE_LEGEND_ITEM, payload: id }),
         []
     );
 
-    /** @param {string} id */
     const duplicateLegendItem = useCallback(
         (id) =>
             dispatch({ type: ACTION_TYPES.DUPLICATE_LEGEND_ITEM, payload: id }),
         []
     );
 
-    // ── CONTOURS ───────────────────────────────────────────────────────────────
+    // ── PLAN GÉNÉRAL — CONTOURS ────────────────────────────────────────────────
 
-    /** @param {string} symbolKey @param {{ x:number, y:number }} firstPoint */
     const startContourPath = useCallback((symbolKey, firstPoint) => {
         const symbol = getSymbolByKey(symbolKey);
         if (!symbol) return;
@@ -125,7 +102,6 @@ export function AppProvider({ children }) {
         });
     }, []);
 
-    /** @param {string} id @param {{ x:number, y:number }} point */
     const addContourPoint = useCallback((id, point) => {
         dispatch({
             type: ACTION_TYPES.ADD_CONTOUR_POINT,
@@ -133,14 +109,12 @@ export function AppProvider({ children }) {
         });
     }, []);
 
-    /** @param {string} id */
     const closeContourPath = useCallback(
         (id) =>
             dispatch({ type: ACTION_TYPES.CLOSE_CONTOUR_PATH, payload: id }),
         []
     );
 
-    /** @param {string} id @param {object} changes */
     const updateContourPath = useCallback((id, changes) => {
         dispatch({
             type: ACTION_TYPES.UPDATE_CONTOUR_PATH,
@@ -148,14 +122,12 @@ export function AppProvider({ children }) {
         });
     }, []);
 
-    /** @param {string} id */
     const removeContourPath = useCallback(
         (id) =>
             dispatch({ type: ACTION_TYPES.REMOVE_CONTOUR_PATH, payload: id }),
         []
     );
 
-    /** @param {string} id @param {number} index @param {{ x:number, y:number }} point */
     const updateContourPoint = useCallback((id, index, point) => {
         dispatch({
             type: ACTION_TYPES.UPDATE_CONTOUR_POINT,
@@ -163,35 +135,190 @@ export function AppProvider({ children }) {
         });
     }, []);
 
+    // ── PLAN DES NIVEAUX — NIVEAUX ─────────────────────────────────────────────
+
+    const addNiveau = useCallback((nom) => {
+        dispatch({ type: ACTION_TYPES.PN_ADD_NIVEAU, payload: { nom } });
+    }, []);
+
+    const removeNiveau = useCallback(
+        (id) =>
+            dispatch({ type: ACTION_TYPES.PN_REMOVE_NIVEAU, payload: id }),
+        []
+    );
+
+    const updateNiveau = useCallback((id, changes) => {
+        dispatch({
+            type: ACTION_TYPES.PN_UPDATE_NIVEAU,
+            payload: { id, ...changes },
+        });
+    }, []);
+
+    const setActiveNiveau = useCallback((id) => {
+        dispatch({ type: ACTION_TYPES.PN_SET_ACTIVE_NIVEAU, payload: id });
+    }, []);
+
+    const loadNiveauImage = useCallback((file) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () =>
+                dispatch({
+                    type: ACTION_TYPES.PN_LOAD_IMAGE,
+                    payload: {
+                        src: e.target.result,
+                        naturalWidth: img.naturalWidth,
+                        naturalHeight: img.naturalHeight,
+                        fileName: file.name,
+                    },
+                });
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }, []);
+
+    // ── PLAN DES NIVEAUX — LÉGENDE ─────────────────────────────────────────────
+
+    const addNiveauLegendItem = useCallback((symbolKey, coords) => {
+        const symbol = getNiveauSymbolByKey(symbolKey);
+        if (!symbol) return;
+        dispatch({
+            type: ACTION_TYPES.PN_ADD_LEGEND_ITEM,
+            payload: { symbolKey, type: symbol.type, ...coords },
+        });
+    }, []);
+
+    const updateNiveauLegendItem = useCallback((id, changes) => {
+        dispatch({
+            type: ACTION_TYPES.PN_UPDATE_LEGEND_ITEM,
+            payload: { id, ...changes },
+        });
+    }, []);
+
+    const removeNiveauLegendItem = useCallback(
+        (id) =>
+            dispatch({
+                type: ACTION_TYPES.PN_REMOVE_LEGEND_ITEM,
+                payload: id,
+            }),
+        []
+    );
+
+    const duplicateNiveauLegendItem = useCallback(
+        (id) =>
+            dispatch({
+                type: ACTION_TYPES.PN_DUPLICATE_LEGEND_ITEM,
+                payload: id,
+            }),
+        []
+    );
+
+    // ── PLAN DES NIVEAUX — CONTOURS ────────────────────────────────────────────
+
+    const startNiveauContourPath = useCallback((symbolKey, firstPoint) => {
+        const symbol = getNiveauSymbolByKey(symbolKey);
+        if (!symbol) return;
+        dispatch({
+            type: ACTION_TYPES.PN_ADD_CONTOUR_PATH,
+            payload: {
+                symbolKey,
+                firstPoint,
+                color: symbol.color,
+                strokeWidth: symbol.strokeWidth ?? 3,
+                strokeStyle: symbol.strokeStyle ?? "solid",
+                fillColor: symbol.fillColor ?? "transparent",
+                fillOpacity: symbol.fillOpacity ?? 0,
+            },
+        });
+    }, []);
+
+    const addNiveauContourPoint = useCallback((id, point) => {
+        dispatch({
+            type: ACTION_TYPES.PN_ADD_CONTOUR_POINT,
+            payload: { id, point },
+        });
+    }, []);
+
+    const closeNiveauContourPath = useCallback(
+        (id) =>
+            dispatch({ type: ACTION_TYPES.PN_CLOSE_CONTOUR_PATH, payload: id }),
+        []
+    );
+
+    const updateNiveauContourPath = useCallback((id, changes) => {
+        dispatch({
+            type: ACTION_TYPES.PN_UPDATE_CONTOUR_PATH,
+            payload: { id, ...changes },
+        });
+    }, []);
+
+    const removeNiveauContourPath = useCallback(
+        (id) =>
+            dispatch({
+                type: ACTION_TYPES.PN_REMOVE_CONTOUR_PATH,
+                payload: id,
+            }),
+        []
+    );
+
+    const updateNiveauContourPoint = useCallback((id, index, point) => {
+        dispatch({
+            type: ACTION_TYPES.PN_UPDATE_CONTOUR_POINT,
+            payload: { id, index, point },
+        });
+    }, []);
+
+    // ── PLAN DES NIVEAUX — PHOTOS ──────────────────────────────────────────────
+
+    /**
+     * @param {File} file
+     * @returns {Promise<string>} id de la photo créée
+     */
+    const addNiveauPhoto = useCallback((file) => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const id = crypto.randomUUID();
+                dispatch({
+                    type: ACTION_TYPES.PN_ADD_PHOTO,
+                    payload: { id, fileName: file.name, src: e.target.result },
+                });
+                resolve(id);
+            };
+            reader.readAsDataURL(file);
+        });
+    }, []);
+
+    const removeNiveauPhoto = useCallback(
+        (id) =>
+            dispatch({ type: ACTION_TYPES.PN_REMOVE_PHOTO, payload: id }),
+        []
+    );
+
     // ── UI ─────────────────────────────────────────────────────────────────────
 
-    /** @param {string} tool */
     const setTool = useCallback(
         (tool) =>
             dispatch({ type: ACTION_TYPES.SET_SELECTED_TOOL, payload: tool }),
         []
     );
 
-    /** @param {string} key */
     const selectSymbol = useCallback(
         (key) =>
             dispatch({ type: ACTION_TYPES.SET_SELECTED_SYMBOL, payload: key }),
         []
     );
 
-    /** @param {string|null} id */
     const selectItem = useCallback(
         (id) => dispatch({ type: ACTION_TYPES.SET_SELECTED_ITEM, payload: id }),
         []
     );
 
-    /** @param {number} zoom */
     const setZoom = useCallback(
         (zoom) => dispatch({ type: ACTION_TYPES.SET_ZOOM, payload: zoom }),
         []
     );
 
-    /** @param {{ x:number, y:number }} offset */
     const setPan = useCallback(
         (offset) => dispatch({ type: ACTION_TYPES.SET_PAN, payload: offset }),
         []
@@ -199,35 +326,71 @@ export function AppProvider({ children }) {
 
     // ── PERSISTANCE ────────────────────────────────────────────────────────────
 
-    /** @returns {Promise<{ success:boolean, error?:string }>} */
     const saveProject = useCallback(async () => {
         try {
-            const { image, ...stateWithoutImage } = state;
+            const projectId = state.project.id;
+
+            // Sérialise l'état sans les src images (stockées séparément en IndexedDB)
+            const planGeneralWithoutSrc = {
+                ...state.planGeneral,
+                image: { ...state.planGeneral.image, src: null },
+            };
+            const planNiveauxWithoutSrc = {
+                ...state.planNiveaux,
+                niveaux: state.planNiveaux.niveaux.map((n) => ({
+                    ...n,
+                    image: { ...n.image, src: null },
+                    photos: n.photos.map((p) => ({ ...p, src: null })),
+                })),
+            };
+
             const snapshot = {
-                ...stateWithoutImage,
-                version: "1.0",
+                version: "2.0",
                 savedAt: new Date().toISOString(),
+                project: state.project,
+                planGeneral: planGeneralWithoutSrc,
+                planNiveaux: planNiveauxWithoutSrc,
             };
 
             localStorage.setItem(
-                `ppms_project_${state.project.id}`,
+                `ppms_project_${projectId}`,
                 JSON.stringify(snapshot)
             );
 
-            await storeImage(state.project.id, image);
+            // Sauvegarde image Plan Général
+            if (state.planGeneral.image.src) {
+                await storeImage(projectId, state.planGeneral.image);
+            }
 
+            // Sauvegarde images des niveaux
+            for (const niveau of state.planNiveaux.niveaux) {
+                if (niveau.image.src) {
+                    await storeImage(`${projectId}_nv_${niveau.id}`, niveau.image);
+                }
+                for (const photo of niveau.photos) {
+                    if (photo.src) {
+                        await storeImage(
+                            `${projectId}_photo_${photo.id}`,
+                            { src: photo.src, fileName: photo.fileName }
+                        );
+                    }
+                }
+            }
+
+            // Index projets
             const index = JSON.parse(
                 localStorage.getItem("ppms_projects") ?? "[]"
             );
-            const updated = index.filter((p) => p.id !== state.project.id);
+            const updated = index.filter((p) => p.id !== projectId);
             updated.unshift({
-                id: state.project.id,
+                id: projectId,
                 name: state.project.name,
                 schoolName: state.project.schoolName,
                 savedAt: snapshot.savedAt,
-                fileName: state.image.fileName,
+                fileName: state.planGeneral.image.fileName,
             });
             localStorage.setItem("ppms_projects", JSON.stringify(updated));
+
             dispatch({ type: ACTION_TYPES.MARK_SAVED });
             return { success: true };
         } catch (err) {
@@ -236,10 +399,6 @@ export function AppProvider({ children }) {
         }
     }, [state]);
 
-    /**
-     * @param {string} projectId
-     * @returns {Promise<{ success:boolean, error?:string }>}
-     */
     const loadProject = useCallback(async (projectId) => {
         try {
             const raw = localStorage.getItem(`ppms_project_${projectId}`);
@@ -251,24 +410,49 @@ export function AppProvider({ children }) {
 
             const snapshot = JSON.parse(raw);
 
-            let image = await retrieveImage(projectId);
-            if (!image && snapshot.image?.src) image = snapshot.image;
-
-            if (!image) {
-                return {
-                    success: false,
-                    error: "Image du projet introuvable — veuillez recharger le plan manuellement.",
-                };
+            // Support ancien format v1
+            if (snapshot.version === "1.0" || !snapshot.version) {
+                return _loadLegacyProject(snapshot, projectId, dispatch);
             }
 
-            const projectState = { ...snapshot };
-            delete projectState.version;
-            delete projectState.savedAt;
-            delete projectState.image;
+            // Format v2 — restore images from IndexedDB
+            const pgImage =
+                (await retrieveImage(projectId)) ??
+                (snapshot.planGeneral?.image?.src
+                    ? snapshot.planGeneral.image
+                    : null);
+
+            if (!pgImage?.src && snapshot.planGeneral?.image?.fileName) {
+                // Plan Général sans image : OK si on est en planNiveaux
+            }
+
+            const niveaux = await Promise.all(
+                (snapshot.planNiveaux?.niveaux ?? []).map(async (n) => {
+                    const img = await retrieveImage(`${projectId}_nv_${n.id}`);
+                    const photos = await Promise.all(
+                        (n.photos ?? []).map(async (p) => {
+                            const stored = await retrieveImage(
+                                `${projectId}_photo_${p.id}`
+                            );
+                            return { ...p, src: stored?.src ?? null };
+                        })
+                    );
+                    return { ...n, image: img ?? n.image, photos };
+                })
+            );
+
+            const projectState = {
+                project: snapshot.project,
+                planGeneral: {
+                    ...snapshot.planGeneral,
+                    image: pgImage ?? snapshot.planGeneral?.image ?? { src: null, naturalWidth: 0, naturalHeight: 0, fileName: "" },
+                },
+                planNiveaux: { ...snapshot.planNiveaux, niveaux },
+            };
 
             dispatch({
                 type: ACTION_TYPES.LOAD_PROJECT,
-                payload: { ...projectState, image },
+                payload: projectState,
             });
             return { success: true };
         } catch (err) {
@@ -276,38 +460,53 @@ export function AppProvider({ children }) {
         }
     }, []);
 
-    /**
-     * @param {File} file
-     * @returns {Promise<{ success:boolean, error?:string }>}
-     */
     const importProject = useCallback(async (file) => {
         const result = await parseImportFile(file);
         if (!result.success) return result;
 
         const { data } = result;
-
         const newId = crypto.randomUUID();
-        const projectState = {
-            project: { ...data.project, id: newId },
-            image: data.image,
-            legendItems: data.legendItems,
-            contourPaths: data.contourPaths,
-        };
 
-        try {
-            await storeImage(newId, data.image);
-        } catch (err) {
-            console.warn(
-                "[AppProvider] Stockage IndexedDB échoué, image conservée en mémoire",
-                err
-            );
+        // Support format legacy v1
+        if (!data.planGeneral) {
+            const projectState = {
+                project: { ...data.project, id: newId },
+                planGeneral: {
+                    image: data.image,
+                    legendItems: data.legendItems ?? [],
+                    contourPaths: data.contourPaths ?? [],
+                },
+                planNiveaux: { niveaux: [], activeNiveauId: null },
+            };
+            try {
+                await storeImage(newId, data.image);
+            } catch {
+                // image conservée en mémoire
+            }
+            dispatch({
+                type: ACTION_TYPES.LOAD_PROJECT,
+                payload: projectState,
+            });
+            return { success: true };
         }
 
+        // Format v2
+        const projectState = {
+            project: { ...data.project, id: newId },
+            planGeneral: data.planGeneral,
+            planNiveaux: data.planNiveaux ?? { niveaux: [], activeNiveauId: null },
+        };
+        try {
+            if (data.planGeneral?.image?.src) {
+                await storeImage(newId, data.planGeneral.image);
+            }
+        } catch {
+            // image conservée en mémoire
+        }
         dispatch({ type: ACTION_TYPES.LOAD_PROJECT, payload: projectState });
         return { success: true };
     }, []);
 
-    /** @param {string} projectId @returns {Promise<void>} */
     const deleteProject = useCallback(async (projectId) => {
         localStorage.removeItem(`ppms_project_${projectId}`);
         const index = JSON.parse(localStorage.getItem("ppms_projects") ?? "[]");
@@ -316,9 +515,10 @@ export function AppProvider({ children }) {
             JSON.stringify(index.filter((p) => p.id !== projectId))
         );
         await removeImage(projectId);
+        // Nettoyage images niveaux : on ne connaît pas les IDs ici,
+        // mais les orphelins en IndexedDB ne posent pas de problème fonctionnel.
     }, []);
 
-    /** @returns {Array} */
     const listProjects = useCallback(
         () => JSON.parse(localStorage.getItem("ppms_projects") ?? "[]"),
         []
@@ -329,7 +529,6 @@ export function AppProvider({ children }) {
         []
     );
 
-    /** @param {{ name?:string, schoolName?:string }} info */
     const setProjectInfo = useCallback((info) => {
         dispatch({ type: ACTION_TYPES.SET_PROJECT_INFO, payload: info });
     }, []);
@@ -337,7 +536,9 @@ export function AppProvider({ children }) {
     // ── Exposition ─────────────────────────────────────────────────────────────
 
     const actions = {
-        setModule, // ← NOUVEAU
+        // Navigation
+        setModule,
+        // Plan Général
         loadImage,
         addLegendItem,
         updateLegendItem,
@@ -349,11 +550,31 @@ export function AppProvider({ children }) {
         updateContourPath,
         removeContourPath,
         updateContourPoint,
+        // Plan des Niveaux
+        addNiveau,
+        removeNiveau,
+        updateNiveau,
+        setActiveNiveau,
+        loadNiveauImage,
+        addNiveauLegendItem,
+        updateNiveauLegendItem,
+        removeNiveauLegendItem,
+        duplicateNiveauLegendItem,
+        startNiveauContourPath,
+        addNiveauContourPoint,
+        closeNiveauContourPath,
+        updateNiveauContourPath,
+        removeNiveauContourPath,
+        updateNiveauContourPoint,
+        addNiveauPhoto,
+        removeNiveauPhoto,
+        // UI
         setTool,
         selectSymbol,
         selectItem,
         setZoom,
         setPan,
+        // Persistance
         saveProject,
         loadProject,
         listProjects,
@@ -368,4 +589,33 @@ export function AppProvider({ children }) {
             {children}
         </AppContext.Provider>
     );
+}
+
+/**
+ * Charge un projet au format legacy v1 (avant refactorisation multi-module).
+ */
+async function _loadLegacyProject(snapshot, projectId, dispatch) {
+    try {
+        let image = await retrieveImage(projectId);
+        if (!image && snapshot.image?.src) image = snapshot.image;
+        if (!image) {
+            return {
+                success: false,
+                error: "Image du projet introuvable — veuillez recharger le plan manuellement.",
+            };
+        }
+        const projectState = {
+            project: snapshot.project ?? {},
+            planGeneral: {
+                image,
+                legendItems: snapshot.legendItems ?? [],
+                contourPaths: snapshot.contourPaths ?? [],
+            },
+            planNiveaux: { niveaux: [], activeNiveauId: null },
+        };
+        dispatch({ type: ACTION_TYPES.LOAD_PROJECT, payload: projectState });
+        return { success: true };
+    } catch (err) {
+        return { success: false, error: err.message };
+    }
 }
