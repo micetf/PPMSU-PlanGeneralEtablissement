@@ -15,7 +15,7 @@
  */
 
 const FORMAT_ID = "ppmsu";
-const FORMAT_VERSION = "1.0";
+const FORMAT_VERSION = "2.0";
 
 // ── EXPORT ─────────────────────────────────────────────────────────────────
 
@@ -137,14 +137,17 @@ function _validate(data) {
     if (!data.version) {
         return "Version manquante dans le fichier .ppmsu";
     }
-    if (!data.image?.src) {
-        return "Image manquante dans le fichier .ppmsu";
-    }
-    if (!Array.isArray(data.legendItems)) {
-        return "Données de légende corrompues";
-    }
-    if (!Array.isArray(data.contourPaths)) {
-        return "Données de contour corrompues";
+    // Pour le format legacy v1 (sans planGeneral), l'image est obligatoire
+    if (!data.planGeneral) {
+        if (!data.image?.src) {
+            return "Image manquante dans le fichier .ppmsu";
+        }
+        if (!Array.isArray(data.legendItems)) {
+            return "Données de légende corrompues";
+        }
+        if (!Array.isArray(data.contourPaths)) {
+            return "Données de contour corrompues";
+        }
     }
     return null;
 }

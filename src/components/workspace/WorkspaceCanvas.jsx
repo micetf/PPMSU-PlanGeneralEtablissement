@@ -166,7 +166,7 @@ export function WorkspaceCanvas({
     return (
         <div
             ref={containerRef}
-            className="absolute inset-0 overflow-hidden bg-slate-200 cursor-crosshair"
+            className="absolute inset-0 z-0 overflow-hidden bg-slate-200 cursor-crosshair"
             onMouseDown={handleMouseDown}
             onMouseMove={handleMove}
             onMouseUp={handleMouseUp}

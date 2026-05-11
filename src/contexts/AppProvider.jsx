@@ -276,25 +276,6 @@ export function AppProvider({ children }) {
 
     // ── PLAN DES NIVEAUX — PHOTOS ──────────────────────────────────────────────
 
-    /**
-     * @param {File} file
-     * @returns {Promise<string>} id de la photo créée
-     */
-    const addNiveauPhoto = useCallback((file) => {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const id = crypto.randomUUID();
-                dispatch({
-                    type: ACTION_TYPES.PN_ADD_PHOTO,
-                    payload: { id, fileName: file.name, src: e.target.result },
-                });
-                resolve(id);
-            };
-            reader.readAsDataURL(file);
-        });
-    }, []);
-
     const removeNiveauPhoto = useCallback(
         (id) =>
             dispatch({ type: ACTION_TYPES.PN_REMOVE_PHOTO, payload: id }),
@@ -532,6 +513,20 @@ export function AppProvider({ children }) {
     }, []);
 
     const deleteProject = useCallback(async (projectId) => {
+        const raw = localStorage.getItem(`ppms_project_${projectId}`);
+        if (raw) {
+            try {
+                const snapshot = JSON.parse(raw);
+                for (const niveau of snapshot.planNiveaux?.niveaux ?? []) {
+                    await removeImage(`${projectId}_nv_${niveau.id}`);
+                    for (const photo of niveau.photos ?? []) {
+                        await removeImage(`${projectId}_photo_${photo.id}`);
+                    }
+                }
+            } catch {
+                // Ignore, on continue la suppression
+            }
+        }
         localStorage.removeItem(`ppms_project_${projectId}`);
         const index = JSON.parse(localStorage.getItem("ppms_projects") ?? "[]");
         localStorage.setItem(
@@ -539,8 +534,6 @@ export function AppProvider({ children }) {
             JSON.stringify(index.filter((p) => p.id !== projectId))
         );
         await removeImage(projectId);
-        // Nettoyage images niveaux : on ne connaît pas les IDs ici,
-        // mais les orphelins en IndexedDB ne posent pas de problème fonctionnel.
     }, []);
 
     const listProjects = useCallback(
@@ -590,7 +583,6 @@ export function AppProvider({ children }) {
         updateNiveauContourPath,
         removeNiveauContourPath,
         updateNiveauContourPoint,
-        addNiveauPhoto,
         addNiveauPhotoFromDataUrl,
         removeNiveauPhoto,
         setNiveauRotation,

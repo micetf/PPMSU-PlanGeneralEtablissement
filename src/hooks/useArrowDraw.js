@@ -4,7 +4,7 @@
  * Utilise un ref pour accès synchrone aux points lors du double-clic
  * (le navigateur déclenche click×2 puis dblclick dans cet ordre).
  */
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useApp } from "./useApp";
 import { getNiveauSymbolByKey } from "../constants/niveauxLegend";
 import { eventToNiveauPct } from "../utils/niveauCoords";
@@ -23,6 +23,14 @@ export function useArrowDraw() {
         (e) => eventToNiveauPct(e, activeNiveau, state.ui),
         [state.ui, activeNiveau]
     );
+
+    useEffect(() => {
+        if (state.ui.selectedTool !== "arrow") {
+            pointsRef.current = [];
+            setPoints([]);
+            setCursorPos(null);
+        }
+    }, [state.ui.selectedTool]);
 
     const handleCanvasMouseMove = useCallback(
         (e) => {

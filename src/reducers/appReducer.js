@@ -629,6 +629,23 @@ export function appReducer(state, action) {
         // ── UI ───────────────────────────────────────────────────────────────
         case ACTION_TYPES.SET_SELECTED_TOOL: {
             const pg = state.planGeneral;
+            if (state.ui.moduleActif === "planNiveaux" && state.ui.activeDrawingPathId) {
+                const pnUpdated = updateActiveNiveau(state, (n) => ({
+                    ...n,
+                    contourPaths: cleanActiveDrawing(n.contourPaths, state.ui.activeDrawingPathId),
+                }));
+                return {
+                    ...pnUpdated,
+                    ui: {
+                        ...pnUpdated.ui,
+                        selectedTool: payload,
+                        selectedItemId: null,
+                        activeDrawingPathId: null,
+                        selectedSymbolKey:
+                            payload === "select" ? null : state.ui.selectedSymbolKey,
+                    },
+                };
+            }
             const cleaned = cleanActiveDrawing(
                 pg.contourPaths,
                 state.ui.activeDrawingPathId
@@ -651,6 +668,22 @@ export function appReducer(state, action) {
 
         case ACTION_TYPES.SET_SELECTED_SYMBOL: {
             const pg = state.planGeneral;
+            if (state.ui.moduleActif === "planNiveaux" && state.ui.activeDrawingPathId) {
+                const pnUpdated = updateActiveNiveau(state, (n) => ({
+                    ...n,
+                    contourPaths: cleanActiveDrawing(n.contourPaths, state.ui.activeDrawingPathId),
+                }));
+                return {
+                    ...pnUpdated,
+                    ui: {
+                        ...pnUpdated.ui,
+                        selectedSymbolKey: payload,
+                        selectedTool: "place",
+                        activeDrawingPathId: null,
+                        selectedItemId: null,
+                    },
+                };
+            }
             const cleaned = cleanActiveDrawing(
                 pg.contourPaths,
                 state.ui.activeDrawingPathId
